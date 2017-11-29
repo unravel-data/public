@@ -417,14 +417,17 @@ function cluster_detect() {
   export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
   export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
   prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port="$port"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port="$port
-  echo -e $prop | tee -a ${OUT_PROP_FILE}
-  setup_restserver
-  curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
-  RET=$?
-  echo "CURL RET: $RET" | tee -a ${OUT_FILE}
+  
 
   if [ "${full_host_name,,}" == "${primary_head_node,,}" ]; then
     HOST_ROLE=master
+    if [[ -z "bootstrap_server1" ]]; then
+      echo -e $prop | tee -a ${OUT_PROP_FILE}
+      setup_restserver
+      curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
+      RET=$?
+      echo "CURL RET: $RET" | tee -a ${OUT_FILE}
+    fi
   else
     if [ 1 -eq $(test_is_zookeepernode) ]; then
       HOST_ROLE=zookeeper
