@@ -421,18 +421,18 @@ function cluster_detect() {
 
   if [ "${full_host_name,,}" == "${primary_head_node,,}" ]; then
     HOST_ROLE=master
-    if [[ -z "$bootstrap_server1" ]]; then
-      echo -e $prop | tee -a ${OUT_PROP_FILE}
-      setup_restserver
-      curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
-      RET=$?
-      echo "CURL RET: $RET" | tee -a ${OUT_FILE}
-    fi
   else
     if [ 1 -eq $(test_is_zookeepernode) ]; then
       HOST_ROLE=zookeeper
     else
       HOST_ROLE=slave
+      if [[ -z "$bootstrap_server1" ]]; then
+        echo -e $prop | tee -a ${OUT_PROP_FILE}
+        setup_restserver
+        curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
+        RET=$?
+        echo "CURL RET: $RET" | tee -a ${OUT_FILE}
+      fi
     fi
   fi
   echo "HOST_ROLE=$HOST_ROLE" | tee -a ${OUT_FILE}
