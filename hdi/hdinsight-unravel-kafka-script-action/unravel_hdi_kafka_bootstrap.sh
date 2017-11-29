@@ -410,7 +410,7 @@ function cluster_detect() {
   NAME2="broker2"
   export cluster=${CLUSTER_ID,,}
 
-  sudo apt-get install jq
+  #sudo apt-get install jq
   export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
   export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
   export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
@@ -418,13 +418,15 @@ function cluster_detect() {
   export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
   prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port="$port"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port="$port
   
-  if [[ -n "$bootstrap_server1" ]]; then
+  if [ -n "$bootstrap_server1" ] && [ -n "$bootstrap_server2" ]; then
     set_temp_prop_file
     echo -e $prop | tee -a ${OUT_PROP_FILE}
     setup_restserver
-    curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
-    RET=$?
-    echo "CURL RET: $RET" | tee -a ${OUT_FILE}
+    if [-n "${UNRAVEL_RESTSERVER_HOST_AND_PORT}"]; then
+      curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
+      RET=$?
+      echo "CURL RET: $RET" | tee -a ${OUT_FILE}
+    fi
   fi
 
   if [ "${full_host_name,,}" == "${primary_head_node,,}" ]; then
@@ -442,16 +444,16 @@ function cluster_detect() {
 
 
 # setup env
-export HADOOP_CONF=/etc/hadoop/
+#export HADOOP_CONF=/etc/hadoop/
 # hive conf is managed by Ambari
-export HIVE_CONF_DEST=
-export HIVE_CONF_DEST_OWNER=
-export UNRAVEL_HH_DEST_OWNER="root:root"
-export UNRAVEL_HH_DEST=/usr/local/unravel_client
+#export HIVE_CONF_DEST=
+#export HIVE_CONF_DEST_OWNER=
+#export UNRAVEL_HH_DEST_OWNER="root:root"
+#export UNRAVEL_HH_DEST=/usr/local/unravel_client
 
 
 
-export ES_CLUSTER_TYPE_SWITCH=""
+#export ES_CLUSTER_TYPE_SWITCH=""
 
 
 ################################################################################################
@@ -471,11 +473,11 @@ export ES_CLUSTER_TYPE_SWITCH="--cluster HDI"
 # Unravel integration for HDInsight - Spark support
 
 # setup env
-export SPARK_CONF_DEST=
-export ZEPPELIN_CONF_DIR=
-export UNRAVEL_SPARK_DEST=/usr/local/unravel-agent
-export UNRAVEL_SPARK_DEST_OWNER="root:root"
-export SPARK_SENSOR_JARS=${UNRAVEL_SPARK_DEST}/jars
+#export SPARK_CONF_DEST=
+#export ZEPPELIN_CONF_DIR=
+#export UNRAVEL_SPARK_DEST=/usr/local/unravel-agent
+#export UNRAVEL_SPARK_DEST_OWNER="root:root"
+#export SPARK_SENSOR_JARS=${UNRAVEL_SPARK_DEST}/jars
 
 
 # dump the contents of env variables and shell settings
