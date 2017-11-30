@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "clusterName": {
+            "value": "myclsuername"
+        },
+        "clusterType": { 
+            "value": "spark"
+        },
+        "clusterStorageAccountName": {
+            "value": "storage01"
+        },
+        "clusterLoginUserName": {
+            "value": "admin"
+        },
+        "clusterLoginPassword": {
+            "value": "adminPassword123!"
+        },
+        "sshUserName": {
+            "value": "centos"
+        },
+        "sshPassword": {
+            "value": "adminPassword123!"
+        }
+    }
+}
