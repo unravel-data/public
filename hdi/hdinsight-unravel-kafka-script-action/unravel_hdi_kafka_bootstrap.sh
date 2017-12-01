@@ -419,7 +419,7 @@ function cluster_detect() {
   prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port=9999\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port=9999"
   
   echo "EXT KAFKA PROP=$prop" | tee -a ${OUT_FILE}
-  if [ -n "$bootstrap_server1" ] && [ -n "$bootstrap_server2" ]; then
+  if [[ "$full_host_name" == "hn0"* ]] && [ -n "$bootstrap_server1" ] && [ -n "$bootstrap_server2" ]; then
     set_temp_prop_file
     echo -e $prop | tee -a ${OUT_PROP_FILE}
     setup_restserver
