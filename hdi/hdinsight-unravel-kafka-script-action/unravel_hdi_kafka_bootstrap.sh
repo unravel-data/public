@@ -410,7 +410,7 @@ function cluster_detect() {
   NAME2="broker2"
   export cluster=${CLUSTER_ID,,}
 
-  sudo apt-get install jq
+  sudo apt-get -y install jq
   export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
   export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
   export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
