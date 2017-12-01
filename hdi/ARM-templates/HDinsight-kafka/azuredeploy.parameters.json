@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "clusterName": {
+            "value": "myvmname"
+        },
+        "clusterType": { 
+            "value": "kafka"
+        },
+        "clusterStorageAccountName": {
+            "value": "storage01"
+        },
+        "clusterLoginUserName": {
+            "value": "admin"
+        },
+        "clusterLoginPassword": {
+            "value": "clusterpassword123!"
+        },
+        "sshUserName": {
+            "value": "centos"
+        },
+        "sshPassword": {
+            "value": "clusterpassword123!"
+        }
+    }
+}
