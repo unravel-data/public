@@ -160,13 +160,6 @@
                 "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
                 "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
               },
-              "scriptActions": [
-                {
-                  "name": "unravelsetup",
-                  "uri": "[parameters('scriptActionUri')]",
-                  "parameters": "10.10.1.15:3000"
-                }
-              ],
               "dataDisksGroups": [
                 {
                  "disksPerNode": 2
