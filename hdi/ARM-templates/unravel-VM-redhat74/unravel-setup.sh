@@ -1,5 +1,5 @@
 # Download unravel rpm
-/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1061.x86_64.EMR.rpm
+/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1064.x86_64.EMR.rpm
 
 # Prepare the VM for unravel rpm install
 /usr/bin/yum install -y ntp
@@ -34,7 +34,7 @@ DATAPRAP=`cat /tmp/dataprap`
 /usr/bin/mount -a
 
 # install unravel rpm
-/usr/bin/rpm  -U unravel-4.2-1061.x86_64.EMR.rpm
+/usr/bin/rpm  -U unravel-4.2-1064.x86_64.EMR.rpm
 
 /usr/bin/sleep 5
 
