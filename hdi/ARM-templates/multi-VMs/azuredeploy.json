@@ -1,0 +1,207 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "User name for the Virtual Machine."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the Virtual Machine."
+      }
+    },
+
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+
+    "fileUris": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The uri of script file."
+      }
+    },
+    "commandToExecute": {
+      "type": "string",
+      "metadata": {
+        "description": "The command to execute."
+      }
+    },
+    "vmCount": {
+      "type": "int"
+    }
+  },
+
+  "variables": {
+    "computeResouresApiVersion": "2016-04-30-preview",
+    "dataDisk1Name": "[concat(uniquestring(parameters('vmName')), 'datadisk1')]",
+    "dataDisk2Name": "[concat(uniquestring(parameters('vmName')), 'datadisk2')]",
+    "dataDisk3Name": "[concat(uniquestring(parameters('vmName')), 'datadisk3')]",
+    "dataDisk4Name": "[concat(uniquestring(parameters('vmName')), 'datadisk4')]",
+    "storageAccountName": "storageacct",
+    "imagePublisher": "OpenLogic",
+    "imageOffer": "CentOS",
+    "imageSku": "7.3",
+    "OSDiskName": "[concat(uniquestring(parameters('vmName')), 'osdisk')]",
+    "nicName": "[concat(uniquestring(parameters('vmName')), 'nic')]",
+    "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
+    "publicIPAddressType": "Dynamic",
+    "vmSize": "Standard_E16S_V3",
+    "virtualNetworkName": "VNET01",
+    "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
+    "extensionName": "CustomScript",
+    "subnetRef": "/subscriptions/64609e4b-204b-4771-a00b-9fe9ef78acbc/resourceGroups/UNRAVEL01/providers/Microsoft.Network/virtualNetworks/VNET01/subnets/VSNET01"
+  },
+  "resources": [
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[concat(variables('publicIPAddressName'),copyIndex(1))]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "[variables('publicIPAddressType')]"
+      },
+      "copy": {
+        "name": "publicIpCopy",
+        "count": "[parameters('vmCount')]"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[concat(parameters('vmName'),variables('storageAccountName'))]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "accountType": "Premium_LRS"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('nicName'),copyIndex(1))]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/',concat(variables('publicIPAddressName'),copyIndex(1)))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "[concat('ipconfig',copyIndex(1))]",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',concat(variables('publicIPAddressName'),copyIndex(1)))]"
+              },
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              }
+            }
+          }
+        ]
+      },
+      "copy": {
+        "name": "nicCopy",
+        "count": "[parameters('vmCount')]"
+      }
+    },
+    {
+      "apiVersion": "2016-04-30-preview",
+      "copy": {
+        "name": "nodeCopy",
+        "count": "[parameters('vmCount')]"
+      },
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(parameters('vmName'),copyIndex(1))]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Tag1": "ManagedVM"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', concat(parameters('vmName'),variables('storageAccountName')))]",
+        "[resourceId('Microsoft.Network/networkInterfaces/', concat(variables('nicName'),copyIndex(1)))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('vmName'),copyIndex(1))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[variables('imageSku')]",
+            "version": "latest"
+          },
+          "dataDisks": [
+            {
+              "name": "[concat(variables('dataDisk1Name'),copyIndex(1))]",
+              "diskSizeGB": "1001",
+              "lun": 0,
+              "createOption": "Empty"
+            },
+            {
+              "name": "[concat(variables('dataDisk2Name'),copyIndex(1))]",
+              "diskSizeGB": "1002",
+              "lun": 1,
+              "createOption": "Empty"
+            },
+            {
+              "name": "[concat(variables('dataDisk3Name'),copyIndex(1))]",
+              "diskSizeGB": "1003",
+              "lun": 2,
+              "createOption": "Empty"
+            },
+            {
+              "name": "[concat(variables('dataDisk4Name'),copyIndex(1))]",
+              "diskSizeGB": "1004",
+              "lun": 3,
+              "createOption": "Empty"
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName'),copyIndex(1)))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "copy": {
+        "name": "SetupScriptExt",
+          "count":  "[parameters('vmCount')]"
+      },
+      "name": "[concat(parameters('vmName'),copyIndex(1),'/', variables('extensionName'))]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', concat(parameters('vmName'),copyIndex(1)))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": "[split(parameters('fileUris'), ' ')]",
+          "commandToExecute": "[parameters('commandToExecute')]"
+        }
+      }
+    }
+  ]
+}
