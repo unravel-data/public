@@ -1,0 +1,24 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "value": "centos"
+        },
+        "adminPassword": {
+            "value": "UnRavelData!123!"
+        },
+        "vmName": {
+            "value": "bigboy"
+        },
+        "vmCount": {
+            "value": 9
+        },
+        "fileUris": {
+            "value": "https://raw.githubusercontent.com/rluiunravel/AWSCF/master/1127b/hdp-setup.sh"
+        },
+        "commandToExecute": {
+            "value": "sh hdp-setup.sh"
+        }
+    }
+}
