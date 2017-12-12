@@ -1,5 +1,5 @@
 # Download unravel rpm
-/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1064.x86_64.EMR.rpm
+/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1069.x86_64.EMR.rpm
 
 # Prepare the VM for unravel rpm install
 /usr/bin/yum install -y ntp
