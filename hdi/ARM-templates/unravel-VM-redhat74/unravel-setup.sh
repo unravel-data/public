@@ -36,7 +36,7 @@ DATAPRAP=`cat /tmp/dataprap`
 /usr/bin/mount -a
 
 # install unravel rpm
-/usr/bin/rpm  -U unravel-4.2-1064.x86_64.EMR.rpm
+/usr/bin/rpm  -U unravel-4.2-1069.x86_64.EMR.rpm
 
 /usr/bin/sleep 5
 
