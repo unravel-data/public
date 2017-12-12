@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the HDInsight cluster to be created. The cluster name must be globally unique."
+      }
+    },
+    "scriptActionUri1": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/rluiunravel/AWSCF/master/1127b/emptynode-setup.sh",
+      "metadata": {
+        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+      }
+    },
+    "scriptActionUri2": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/adrian-unraveldata/azurecfg/master/cfg/unravel_hdi_bootstrap.sh",
+      "metadata": {
+        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+      }
+    }
+  },
+  "variables": {
+    "applicationName1": "new-edgenodeX",
+    "applicationName2": "unravel-scriptaction"
+  },
+  "resources": [
+    {
+        "name": "[concat(parameters('clusterName'),'/', variables('applicationName1'), variables('applicationName2'))]",
+        "type": "Microsoft.HDInsight/clusters/applications",
+        "apiVersion": "2015-03-01-preview",
+        "dependsOn": [],
+        "properties": {
+            "marketPlaceIdentifier": "EmptyNode",
+            "computeProfile": {
+                "roles": [{
+                    "name": "edgenode",
+                    "targetInstanceCount": 1,
+                    "hardwareProfile": {
+                        "vmSize": "Standard_D3_v2"
+                    }
+                }]
+            },
+            "installScriptActions": [{
+                "name": "[concat('emptynode','-' ,variables('applicationName1'))]",
+                "uri": "[parameters('scriptActionUri1')]",
+                "parameters": "",
+                "roles": ["edgenode"]
+                },
+                { "name": "[concat('emptynode','-' ,variables('applicationName2'))]",
+                  "uri": "[parameters('scriptActionUri2')]",
+                  "parameters": "--unravel-server 10.10.1.4:3000 --spark-version 2.1.0",
+                  "roles": ["edgenode"]
+            }],
+            "uninstallScriptActions": [],
+            "httpsEndpoints": [],
+            "applicationType": "CustomApplication"
+        }
+    }
+  ]
+}
