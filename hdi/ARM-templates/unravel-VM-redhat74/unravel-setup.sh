@@ -25,8 +25,6 @@ DATADISK=`/usr/bin/lsblk |grep 500G | awk '{print $1}'`
 echo "/dev/${DATADISK}1  /srv  ext4 defaults 0 0" >> /etc/fstab
 echo "/dev/${DATADISK}1" > /tmp/dataprap
 
-#/usr/sbin/parted -s /dev/${DATADISK} mklabel gpt mkpart primary 0% 100%
-
 echo "Partitioning Disk ${DATADISK}"
 echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/${DATADISK}
 
@@ -49,10 +47,18 @@ echo "export CDH_CPATH="/usr/local/unravel/dlib/hdp2.6.x/*"" >> /usr/local/unrav
 
 # Update Azure blob storage account credential in unravel.properties file
 # Update and uncomment the following lines to reflect your Azure blob storage account name and keys
-# echo "com.unraveldata.hdinsight.storage-account-name-1=fs.azure.account.key.STORAGEACCOUNTNAME.blob.core.windows.net" >> /usr/local/unravel/etc/unravel.properties
-# echo "com.unraveldata.hdinsight.primary-access-key=Ondaq2aYMpJf8pCdvtFJ/zARJvMP1DsoFzBKp//4DVQi+hcL5+XsW2XFNI7ppLottPdAi6KwFQ==" >> /usr/local/unravel/etc/unravel.properties
-# echo "com.unraveldata.hdinsight.storage-account-name-2=fs.azure.account.key.STORAGEACCOUNTNAME.blob.core.windows.net" >> /usr/local/unravel/etc/unravel.properties
-# echo "com.unraveldata.hdinsight.secondary-access-key=aL3MFZ/5hP4k1AZkFZzCmWjgEMqe0o6F33gJZxwfQABLaynxpatWY71YnH35LuTeVm6CP1w==#" >> /usr/local/unravel/etc/unravel.properties
+echo "# Adding Blob Storage Account information, Update and uncomment following lines" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.hdinsight.storage-account-name-1=fs.azure.account.key.STORAGEACCOUNTNAME.blob.core.windows.net" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.hdinsight.primary-access-key=" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.hdinsight.storage-account-name-2=fs.azure.account.key.STORAGEACCOUNTNAME.blob.core.windows.net" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.hdinsight.secondary-access-key=" >> /usr/local/unravel/etc/unravel.properties
+
+echo "# Adding Data Lake Account information, Update and uncomment following lines" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.adl.accountFQDN=DATALAKESTORE.azuredatalakestore.net" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.adl.clientId=" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.adl.clientKey=" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.adl.accessTokenEndpoint=" >> /usr/local/unravel/etc/unravel.properties
+echo "# com.unraveldata.adl.clientRootPath=" >> /usr/local/unravel/etc/unravel.properties
 
 # Starting Unravel daemons
 # uncomment below will start unravel daemon automatically but within unravel_all.sh start  will have exit status=1.
