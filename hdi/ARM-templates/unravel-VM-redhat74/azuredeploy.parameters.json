@@ -12,7 +12,7 @@
             "value": "myvmname"
         },
         "fileUris": {
-            "value": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/unravel-VM-centos73/unravel-setup.sh"
+            "value": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/unravel-VM-centos74/unravel-setup.sh"
         },
         "commandToExecute": {
             "value": "sh unravel-setup.sh"

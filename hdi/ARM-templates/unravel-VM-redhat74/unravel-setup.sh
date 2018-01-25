@@ -22,15 +22,21 @@ sleep 30
 mkdir -p /srv
 
 DATADISK=`/usr/bin/lsblk |grep 500G | awk '{print $1}'`
-echo "/dev/${DATADISK}1  /srv  ext4 defaults 0 0" >> /etc/fstab
+
+#echo "/dev/${DATADISK}1  /srv  ext4 defaults 0 0" >> /etc/fstab
 echo "/dev/${DATADISK}1" > /tmp/dataprap
 
 echo "Partitioning Disk ${DATADISK}"
 echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/${DATADISK}
 
-DATAPRAP=`cat /tmp/dataprap`
 
+
+DATAPRAP=`cat /tmp/dataprap`
 /usr/sbin/mkfs -t ext4 ${DATAPRAP}
+
+DISKUUID=`/usr/sbin/blkid |grep ext4 | awk '{ print $2}' |sed -e 's/"//g'`
+echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
+
 /usr/bin/mount -a
 
 # install unravel rpm
