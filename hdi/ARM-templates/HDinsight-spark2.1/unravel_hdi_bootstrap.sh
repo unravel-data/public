@@ -666,6 +666,7 @@ function get_sensor_initd() {
 
 #set -x
 
+mkdir -p /tmp/unravel
 DAEMON_NAME="unravel_es"
 PID_FILE="${TMP_DIR}/\${DAEMON_NAME}.pid"
 OUT_LOG="${TMP_DIR}/\${DAEMON_NAME}.out"

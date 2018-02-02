@@ -1,0 +1,54 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "value": "admin"
+        },
+        "adminPassword": {
+            "value": "ChangeMe_Password"
+        },
+        "vmName": {
+            "value": "MYVMNAME"
+        },
+        "vmSize": {
+            "value": "Standard_E8s_v3"
+        },
+        "virtualNetworkName": {
+            "value": "VNET01"
+        },
+        "subnetName": {
+            "value": "VSNET01"
+        },
+        "fileUris": {
+            "value": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/unravel-VM-redhat74x/unravel-setup.sh"
+        },
+        "blobstoracct": {
+            "value": "NONE"
+        },
+        "blobpriackey": {
+            "value": "NONE"
+        },
+        "blobsecackey": {
+            "value": "NONE"
+        },
+        "dlkstoreacct": {
+             "value": "NONE"
+        },
+        "dlkclientaid": {
+             "value": "NONE"
+        },
+        "dlkclientkey": {
+             "value": "NONE"
+        },
+        "dlkclitokept": {
+             "value": "NONE"
+        },
+        "dlkcliropath": {
+             "value": "/clusters/CLUSTERNAME"
+        },
+        "commandToExecute": {
+            "value": "sh unravel-setup.sh"
+        }
+    }
+}

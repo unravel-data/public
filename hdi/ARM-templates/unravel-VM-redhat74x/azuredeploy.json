@@ -22,6 +22,28 @@
       }
     },
 
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_E8s_v3",
+      "metadata": {
+        "description": "Virtual machine type."
+      }
+    },
+
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "The virtual network name."
+      }
+    },
+    
+    "subnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The subnet name in the virtual network."
+      }
+    },
+
     "fileUris": {
       "type": "string",
       "defaultValue": "",
@@ -29,6 +51,72 @@
         "description": "The uri of script file."
       }
     },
+
+    "blobstoracct": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Blob storage account name."
+      }
+    },
+    
+   "blobpriackey": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Blob storage account primary access key."
+      }
+    },
+   
+   "blobsecackey": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Blob storage account secondary access key."
+      }
+    },
+
+   "dlkstoreacct": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Data Lake storage account name."
+      }
+    },
+
+   "dlkclientaid": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Data Lake client ID."
+      }
+    },
+
+
+   "dlkclientkey": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Data Lake client Key."
+      }
+    },
+   
+  "dlkclitokept": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Data Lake client Endpoint."
+      }
+    },
+   
+  "dlkcliropath": {
+      "type": "string",
+      "defaultValue": "NONE",
+      "metadata": {
+        "description": "Data Lake client root path."
+      }
+    },
+
     "commandToExecute": {
       "type": "string",
       "metadata": {
@@ -41,19 +129,16 @@
   "variables": {
     "computeResouresApiVersion": "2016-04-30-preview",
     "dataDisk1Name": "[concat(uniquestring(parameters('vmName')), 'datadisk1')]",
-    "imagePublisher": "OpenLogic",
-    "imageOffer": "CentOS",
-    "imageSku": "7.3",
+    "imagePublisher": "RedHat",
+    "imageOffer": "RHEL",
+    "imageSku": "7-RAW",
     "OSDiskName": "[concat(uniquestring(parameters('vmName')), 'osdisk')]",
     "nicName": "[concat(uniquestring(parameters('vmName')), 'nic')]",
     "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
     "publicIPAddressType": "Dynamic",
-    "vmSize": "Standard_E8s_v3",
-    "virtualNetworkName": "VNET01",
-    "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
+    "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName'))]",
     "extensionName": "CustomScript",
-    "subnetName": "VSNET01",
-    "subnetRef": "[concat(variables('vnetID'), '/subnets/', variables('subnetName'))]"
+    "subnetRef": "[concat(variables('vnetID'), '/subnets/', parameters('subnetName'))]"
   },
   "resources": [
     {
@@ -103,7 +188,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "[variables('vmSize')]"
+          "vmSize": "[parameters('vmSize')]"
         },
         "osProfile": {
           "computerName": "[parameters('vmName')]",
@@ -150,7 +235,7 @@
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": "[split(parameters('fileUris'), ' ')]",
-          "commandToExecute": "[parameters('commandToExecute')]"
+          "commandToExecute": "[concat(parameters('commandToExecute'), ' ', parameters('blobstoracct'), ' ', parameters('blobpriackey'), ' ', parameters('blobsecackey'), ' ', parameters('dlkstoreacct'), ' ',  parameters('dlkclientaid'), ' ',  parameters('dlkclientkey'), ' ', parameters('dlkclitokept'), ' ', parameters('dlkcliropath') ) ]"
         }
       }
     }
