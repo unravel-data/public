@@ -52,7 +52,8 @@
     "virtualNetworkName": "VNET01",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
     "extensionName": "CustomScript",
-    "subnetRef": "/subscriptions/64609e4b-204b-4771-a00b-9fe9ef78acbc/resourceGroups/UNRAVEL01/providers/Microsoft.Network/virtualNetworks/VNET01/subnets/VSNET01"
+    "subnetName": "VSNET01",
+    "subnetRef": "[concat(variables('vnetID'), '/subnets/', variables('subnetName'))]"
   },
   "resources": [
     {
