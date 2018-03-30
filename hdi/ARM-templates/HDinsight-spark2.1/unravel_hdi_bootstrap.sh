@@ -153,10 +153,6 @@ function read_unravel_server() {
 function fetch_sensor_zip() {
     local zip_name="unravel-agent-pack-bin.zip"
 
-    if [ -f $AGENT_DST/$zip_name ]; then
-        # do not refetch the agent zip
-        return
-    fi
 
     echo "Fetching sensor zip file" | tee -a ${OUT_FILE}
     URL="http://${UNRAVEL_SERVER}/hh/$zip_name"
@@ -1314,7 +1310,7 @@ function resolve_spark_version() {
 ###############################################################################################
 function resolve_agent_args() {
     if [ "$SPARK_APP_LOAD_MODE" != "BATCH" ]; then
-        local base_agent="-javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
+        local base_agent="-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
         export DRIVER_AGENT_ARGS="${base_agent},config=driver"
         export EXECUTOR_AGENT_ARGS="${base_agent},config=executor"
     fi
