@@ -790,7 +790,7 @@ MINIMUM_RUN_SEC=5
 while true ; do
   # nanny loop
   START_AT=\$(date +%s)
-  java -server -Xmx2g -Xms2g -cp /usr/local/\${IDENT}/lib/* -jar /usr/local/\${IDENT}/unravel-emr-sensor.jar $ES_CLUSTER_TYPE_SWITCH $CLUSTER_ID_ARG $CHUNK_ARG unravel-server \$UNRAVEL_HOST $* > \${IDENT}.out  2>&1
+  java -server -Xmx2g -Xms2g -cp /usr/local/\${IDENT}/lib/* -jar /usr/local/\${IDENT}/unravel-emr-sensor.jar $ES_CLUSTER_TYPE_SWITCH $CLUSTER_ID_ARG $CHUNK_ARG --unravel-server \$UNRAVEL_HOST $* > \${IDENT}.out  2>&1
 
   CHILD_PID=\$!
   # if this script gets INT or TERM, then clean up child process and exit
