@@ -790,7 +790,7 @@ MINIMUM_RUN_SEC=5
 while true ; do
   # nanny loop
   START_AT=\$(date +%s)
-  java -server -Xmx2g -Xms2g -cp /usr/local/\${IDENT}/lib/* -jar /usr/local/\${IDENT}/unravel-emr-sensor.jar $ES_CLUSTER_TYPE_SWITCH $CLUSTER_ID_ARG $CHUNK_ARG --unravel-server \$UNRAVEL_HOST $* > \${IDENT}.out  2>&1
+  java -server -Xmx2g -Xms2g -cp /usr/local/\${IDENT}/lib/* -jar /usr/local/\${IDENT}/unravel-emr-sensor.jar $ES_CLUSTER_TYPE_SWITCH $CLUSTER_ID_ARG $CHUNK_ARG unravel-server \$UNRAVEL_HOST $* > \${IDENT}.out  2>&1
 
   CHILD_PID=\$!
   # if this script gets INT or TERM, then clean up child process and exit
@@ -1492,7 +1492,7 @@ function install_usage() {
     echo "  -y                 unattended install" | tee -a ${OUT_FILE}
     echo "  -v                 verbose mode" | tee -a ${OUT_FILE}
     echo "  -h                 usage" | tee -a ${OUT_FILE}
-    echo "  --unravel-server   unravel_host:port (required)" | tee -a ${OUT_FILE}
+    echo "  unravel-server   unravel_host:port (required)" | tee -a ${OUT_FILE}
     echo "  --unravel-receiver unravel_restserver:port" | tee -a ${OUT_FILE}
     echo "  --hive-version     installed hive version" | tee -a ${OUT_FILE}
     echo "  --spark-version    installed spark version" | tee -a ${OUT_FILE}
@@ -1616,7 +1616,7 @@ function install() {
                 install_usage
                 exit 0
                 ;;
-            --unravel-server )
+            unravel-server )
                 UNRAVEL_SERVER=$1
                 [[ $UNRAVEL_SERVER != *":"* ]] && UNRAVEL_SERVER=${UNRAVEL_SERVER}:3000
                 export UNRAVEL_SERVER
@@ -2257,7 +2257,7 @@ def main():
         print('Spark Config is not correct re-run unravel_hdi_bootstrap.sh')
         call('wget https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/HDinsight-spark2.1/unravel_hdi_bootstrap.sh',shell=True)
         call(['chmod', '+x', 'unravel_hdi_bootstrap.sh'])
-        call('./unravel_hdi_bootstrap.sh --unravel-server %s --spark-version %s' % (argv.unravel, argv.spark_ver),shell=True)
+        call('./unravel_hdi_bootstrap.sh unravel-server %s --spark-version %s' % (argv.unravel, argv.spark_ver),shell=True)
 if __name__ == '__main__':
     main()
 
