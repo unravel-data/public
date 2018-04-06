@@ -1,5 +1,5 @@
 # Download unravel rpm
-/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1075.x86_64.EMR.rpm
+/usr/bin/wget http://preview.unraveldata.com/unravel/RPM/4.2.7/Azure/unravel-4.2.7-Azure-latest.rpm
 
 BLOBSTORACCT=${1}
 BLOBPRIACKEY=${2}
