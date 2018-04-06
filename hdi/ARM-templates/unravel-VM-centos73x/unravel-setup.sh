@@ -104,6 +104,7 @@ echo "com.unraveldata.spark.live.pipeline.enabled=true" >> /usr/local/unravel/et
 echo "com.unraveldata.spark.appLoading.maxAttempts=10" >> /usr/local/unravel/etc/unravel.properties
 echo "com.unraveldata.spark.appLoading.delayForRetry=4000" >> /usr/local/unravel/etc/unravel.properties
 
+
 # Starting Unravel daemons
 # uncomment below will start unravel daemon automatically but within unravel_all.sh start  will have exit status=1.
 # Thus we recommend login to unravel VM and run unravel_all.sh manually
