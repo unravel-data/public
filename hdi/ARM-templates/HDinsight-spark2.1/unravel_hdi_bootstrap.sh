@@ -167,7 +167,7 @@ function fetch_sensor_zip() {
         sudo chmod -R 655 ${AGENT_DST}
         sudo chown -R ${AGENT_DST_OWNER} ${AGENT_DST}
         sudo /bin/cp ${TMP_DIR}/$zip_name  $AGENT_DST/
-        (cd $AGENT_JARS ; sudo unzip ../$zip_name)
+        (cd $AGENT_JARS ; sudo unzip -o ../$zip_name)
     else
         echo "Fetch of $URL failed, RC=$RC"  >&2 | tee -a ${OUT_FILE}
         [ $ALLOW_ERRORS ] && exit 6
@@ -1870,11 +1870,11 @@ function install_hh_aux_jars() {
   currentHiveEnvContent=$(bash $AMBARICONFIGS_SH -u $AMBARI_USR -p $AMBARI_PWD get $AMBARI_HOST $CLUSTER_ID hive-env 2>/dev/null | grep '"content"' | perl -lne 'print $1 if /"content" : "(.*)"/')
 
   export AuxJars="\nexport HIVE_AUX_JARS_PATH=\$HIVE_AUX_JARS_PATH:$jars_colon"
-  newHiveEnvContent="$currentHiveEnvContent$exportAuxJars"
+  newHiveEnvContent="$currentHiveEnvContent$AuxJars"
 
   echo "Modifying hive-env" | tee -a ${OUT_FILE}
 
-  updateResult=$(bash $AMBARICONFIGS_SH -u $AMBARI_USR -p $AMBARI_PWD set $AMBARI_HOST $CLUSTER_ID hive-env "content" "$newHiveEnvContent" 2>/dev/null)
+  updateResult=$(bash $1 -u $AMBARI_USR -p $AMBARI_PWD set $AMBARI_HOST $CLUSTER_ID hive-env "content" "$newHiveEnvContent" 2>/dev/null)
 
   if [[ $updateResult != *"Tag:version"* ]] && [[ $updateResult == *"[ERROR]"* ]]; then
     echo "[ERROR] Failed to update hive-env" | tee -a ${OUT_FILE}
@@ -1883,7 +1883,7 @@ function install_hh_aux_jars() {
   fi
 
   currentWebHCatEnvContent=$(bash $AMBARICONFIGS_SH -u $AMBARI_USR -p $AMBARI_PWD get $AMBARI_HOST $CLUSTER_ID webhcat-env  2>/dev/null | grep '"content"' | perl -lne 'print $1 if /"content" : "(.*)"/')
-  newWebHCatEnvContent="$currentWebHCatEnvContent$exportAuxJars"
+  newWebHCatEnvContent="$currentWebHCatEnvContent$AuxJars"
 
   echo "Modifying webhcat-env" | tee -a ${OUT_FILE}
 
@@ -2212,58 +2212,588 @@ function spark_postinstall_check_impl() {
 
 }
 
+function configs_py(){
+    echo "\
+#!/usr/bin/env python
+'''
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+\"License\"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an \"AS IS\" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+'''
+import optparse
+from optparse import OptionGroup
+import sys
+import urllib2
+import time
+import json
+import base64
+import xml
+import xml.etree.ElementTree as ET
+import os
+import logging
+
+logger = logging.getLogger('AmbariConfig')
+
+HTTP_PROTOCOL = 'http'
+HTTPS_PROTOCOL = 'https'
+
+SET_ACTION = 'set'
+GET_ACTION = 'get'
+DELETE_ACTION = 'delete'
+
+GET_REQUEST_TYPE = 'GET'
+PUT_REQUEST_TYPE = 'PUT'
+
+# JSON Keywords
+PROPERTIES = 'properties'
+ATTRIBUTES = 'properties_attributes'
+CLUSTERS = 'Clusters'
+DESIRED_CONFIGS = 'desired_configs'
+TYPE = 'type'
+TAG = 'tag'
+ITEMS = 'items'
+TAG_PREFIX = 'version'
+
+CLUSTERS_URL = '/api/v1/clusters/{0}'
+DESIRED_CONFIGS_URL = CLUSTERS_URL + '?fields=Clusters/desired_configs'
+CONFIGURATION_URL = CLUSTERS_URL + '/configurations?type={1}&tag={2}'
+
+FILE_FORMAT = \
+\"\"\"
+\"properties\": {
+  \"key1\": \"value1\"
+  \"key2\": \"value2\"
+},
+\"properties_attributes\": {
+  \"attribute\": {
+    \"key1\": \"value1\"
+    \"key2\": \"value2\"
+  }
+}
+\"\"\"
+
+class UsageException(Exception):
+  pass
+
+def api_accessor(host, login, password, protocol, port):
+  def do_request(api_url, request_type=GET_REQUEST_TYPE, request_body=''):
+    try:
+      url = '{0}://{1}:{2}{3}'.format(protocol, host, port, api_url)
+      admin_auth = base64.encodestring('%s:%s' % (login, password)).replace('\n', '')
+      request = urllib2.Request(url)
+      request.add_header('Authorization', 'Basic %s' % admin_auth)
+      request.add_header('X-Requested-By', 'ambari')
+      request.add_data(request_body)
+      request.get_method = lambda: request_type
+      response = urllib2.urlopen(request)
+      response_body = response.read()
+    except Exception as exc:
+      raise Exception('Problem with accessing api. Reason: {0}'.format(exc))
+    return response_body
+  return do_request
+
+def get_config_tag(cluster, config_type, accessor):
+  response = accessor(DESIRED_CONFIGS_URL.format(cluster))
+  try:
+    desired_tags = json.loads(response)
+    current_config_tag = desired_tags[CLUSTERS][DESIRED_CONFIGS][config_type][TAG]
+  except Exception as exc:
+    raise Exception('\"{0}\" not found in server response. Response:\n{1}'.format(config_type, response))
+  return current_config_tag
+
+def create_new_desired_config(cluster, config_type, properties, attributes, accessor):
+  new_tag = TAG_PREFIX + str(int(time.time() * 1000000))
+  new_config = {
+    CLUSTERS: {
+      DESIRED_CONFIGS: {
+        TYPE: config_type,
+        TAG: new_tag,
+        PROPERTIES: properties
+      }
+    }
+  }
+  if len(attributes.keys()) > 0:
+    new_config[CLUSTERS][DESIRED_CONFIGS][ATTRIBUTES] = attributes
+  request_body = json.dumps(new_config)
+  new_file = 'doSet_{0}.json'.format(new_tag)
+  logger.info('### PUTting json into: {0}'.format(new_file))
+  output_to_file(new_file)(new_config)
+  accessor(CLUSTERS_URL.format(cluster), PUT_REQUEST_TYPE, request_body)
+  logger.info('### NEW Site:{0}, Tag:{1}'.format(config_type, new_tag))
+
+def get_current_config(cluster, config_type, accessor):
+  config_tag = get_config_tag(cluster, config_type, accessor)
+  logger.info(\"### on (Site:{0}, Tag:{1})\".format(config_type, config_tag))
+  response = accessor(CONFIGURATION_URL.format(cluster, config_type, config_tag))
+  config_by_tag = json.loads(response)
+  current_config = config_by_tag[ITEMS][0]
+  return current_config[PROPERTIES], current_config.get(ATTRIBUTES, {})
+
+def update_config(cluster, config_type, config_updater, accessor):
+  properties, attributes = config_updater(cluster, config_type, accessor)
+  create_new_desired_config(cluster, config_type, properties, attributes, accessor)
+
+def update_specific_property(config_name, config_value):
+  def update(cluster, config_type, accessor):
+    properties, attributes = get_current_config(cluster, config_type, accessor)
+    properties[config_name] = config_value
+    return properties, attributes
+  return update
+
+def update_from_xml(config_file):
+  def update(cluster, config_type, accessor):
+    return read_xml_data_to_map(config_file)
+  return update
+
+# Used DOM parser to read data into a map
+def read_xml_data_to_map(path):
+  configurations = {}
+  properties_attributes = {}
+  tree = ET.parse(path)
+  root = tree.getroot()
+  for properties in root.getiterator('property'):
+    name = properties.find('name')
+    value = properties.find('value')
+    final = properties.find('final')
+
+    if name != None:
+      name_text = name.text if name.text else \"\"
+    else:
+      logger.warn(\"No name is found for one of the properties in {0}, ignoring it\".format(path))
+      continue
+
+    if value != None:
+      value_text = value.text if value.text else \"\"
+    else:
+      logger.warn('No value is found for \"{0}\" in {1}, using empty string for it'.format(name_text, path))
+      value_text = \"\"
+
+    if final != None:
+      final_text = final.text if final.text else \"\"
+      properties_attributes[name_text] = final_text
+
+    configurations[name_text] = value_text
+  return configurations, {\"final\" : properties_attributes}
+
+def update_from_file(config_file):
+  def update(cluster, config_type, accessor):
+    try:
+      with open(config_file) as in_file:
+        file_content = in_file.read()
+    except Exception as e:
+      raise Exception('Cannot find file \"{0}\" to PUT'.format(config_file))
+    try:
+      file_properties = json.loads('{' + file_content + '}')
+    except Exception as e:
+      raise Exception('File \"{0}\" should be in the following JSON format (\"properties_attributes\" is optional):\n{1}'.format(config_file, FILE_FORMAT))
+    new_properties = file_properties.get(PROPERTIES, {})
+    new_attributes = file_properties.get(ATTRIBUTES, {})
+    logger.info('### PUTting file: \"{0}\"'.format(config_file))
+    return new_properties, new_attributes
+  return update
+
+def delete_specific_property(config_name):
+  def update(cluster, config_type, accessor):
+    properties, attributes = get_current_config(cluster, config_type, accessor)
+    properties.pop(config_name, None)
+    for attribute_values in attributes.values():
+      attribute_values.pop(config_name, None)
+    return properties, attributes
+  return update
+
+def format_json(dictionary, tab_level=0):
+  output = ''
+  tab = ' ' * 2 * tab_level
+  for key, value in dictionary.iteritems():
+    output += ',\n{0}\"{1}\": '.format(tab, key)
+    if isinstance(value, dict):
+      output += '{\n' + format_json(value, tab_level + 1) + tab + '}'
+    else:
+      output += '\"{0}\"'.format(value)
+  output += '\n'
+  return output[2:]
+
+def output_to_file(filename):
+  def output(config):
+    with open(filename, 'w') as out_file:
+      out_file.write(format_json(config))
+  return output
+
+def output_to_console(config):
+  print format_json(config)
+
+def get_config(cluster, config_type, accessor, output):
+  properties, attributes = get_current_config(cluster, config_type, accessor)
+  config = {PROPERTIES: properties}
+  if len(attributes.keys()) > 0:
+    config[ATTRIBUTES] = attributes
+  output(config)
+
+def set_properties(cluster, config_type, args, accessor):
+  logger.info('### Performing \"set\":')
+
+  if len(args) == 1:
+    config_file = args[0]
+    root, ext = os.path.splitext(config_file)
+    if ext == \".xml\":
+      updater = update_from_xml(config_file)
+    elif ext == \".json\":
+      updater = update_from_file(config_file)
+    else:
+      logger.error(\"File extension {0} doesn't supported\".format(ext))
+      return -1
+    logger.info('### from file {0}'.format(config_file))
+  else:
+    config_name = args[0]
+    config_value = args[1]
+    updater = update_specific_property(config_name, config_value)
+    logger.info('### new property - \"{0}\":\"{1}\"'.format(config_name, config_value))
+  update_config(cluster, config_type, updater, accessor)
+  return 0
+
+def delete_properties(cluster, config_type, args, accessor):
+  logger.info('### Performing \"delete\":')
+  if len(args) == 0:
+    logger.error(\"Not enough arguments. Expected config key.\")
+    return -1
+
+  config_name = args[0]
+  logger.info('### on property \"{0}\"'.format(config_name))
+  update_config(cluster, config_type, delete_specific_property(config_name), accessor)
+  return 0
+
+
+def get_properties(cluster, config_type, args, accessor):
+  logger.info(\"### Performing 'get' content:\")
+  if len(args) > 0:
+    filename = args[0]
+    output = output_to_file(filename)
+    logger.info('### to file \"{0}\"'.format(filename))
+  else:
+    output = output_to_console
+  get_config(cluster, config_type, accessor, output)
+  return 0
+
+def main():
+
+  parser = optparse.OptionParser(usage=\"usage: %prog [options]\")
+
+  login_options_group = OptionGroup(parser, 'To specify credentials please use \'-e\' OR \'-u\' and \'-p\'')
+  login_options_group.add_option(\"-u\", \"--user\", dest=\"user\", default=\"admin\", help=\"Optional user ID to use for authentication. Default is 'admin'\")
+  login_options_group.add_option(\"-p\", \"--password\", dest=\"password\", default=\"admin\", help=\"Optional password to use for authentication. Default is 'admin'\")
+  login_options_group.add_option(\"-e\", \"--credentials-file\", dest=\"credentials_file\", help=\"Optional file with user credentials separated by new line.\")
+  parser.add_option_group(login_options_group)
+
+  parser.add_option(\"-t\", \"--port\", dest=\"port\", default=\"8080\", help=\"Optional port number for Ambari server. Default is '8080'. Provide empty string to not use port.\")
+  parser.add_option(\"-s\", \"--protocol\", dest=\"protocol\", default=\"http\", help=\"Optional support of SSL. Default protocol is 'http'\")
+  parser.add_option(\"-a\", \"--action\", dest=\"action\", help=\"Script action: <get>, <set>, <delete>\")
+  parser.add_option(\"-l\", \"--host\", dest=\"host\", help=\"Server external host name\")
+  parser.add_option(\"-n\", \"--cluster\", dest=\"cluster\", help=\"Name given to cluster. Ex: 'c1'\")
+  parser.add_option(\"-c\", \"--config-type\", dest=\"config_type\", help=\"One of the various configuration types in Ambari. Ex: core-site, hdfs-site, mapred-queue-acls, etc.\")
+
+  config_options_group = OptionGroup(parser, \"To specify property(s) please use '-f' OR '-k' and '-v'\")
+  config_options_group.add_option(\"-f\", \"--file\", dest=\"file\", help=\"File where entire configurations are saved to, or read from. Supported extensions (.xml, .json>)\")
+  config_options_group.add_option(\"-k\", \"--key\", dest=\"key\", help=\"Key that has to be set or deleted. Not necessary for 'get' action.\")
+  config_options_group.add_option(\"-v\", \"--value\", dest=\"value\", help=\"Optional value to be set. Not necessary for 'get' or 'delete' actions.\")
+  parser.add_option_group(config_options_group)
+
+  (options, args) = parser.parse_args()
+
+  logger.setLevel(logging.INFO)
+  formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+  stdout_handler = logging.StreamHandler(sys.stdout)
+  stdout_handler.setLevel(logging.INFO)
+  stdout_handler.setFormatter(formatter)
+  logger.addHandler(stdout_handler)
+
+  # options with default value
+
+  if not options.credentials_file and (not options.user or not options.password):
+    parser.error(\"You should use option (-e) to set file with Ambari user credentials OR use (-u) username and (-p) password\")
+
+  if options.credentials_file:
+    if os.path.isfile(options.credentials_file):
+      try:
+        with open(options.credentials_file) as credentials_file:
+          file_content = credentials_file.read()
+          login_lines = filter(None, file_content.splitlines())
+          if len(login_lines) == 2:
+            user = login_lines[0]
+            password = login_lines[1]
+          else:
+            logger.error(\"Incorrect content of {0} file. File should contain Ambari username and password separated by new line.\".format(options.credentials_file))
+            return -1
+      except Exception as e:
+        logger.error(\"You don't have permissions to {0} file\".format(options.credentials_file))
+        return -1
+    else:
+      logger.error(\"File {0} doesn't exist or you don't have permissions.\".format(options.credentials_file))
+      return -1
+  else:
+    user = options.user
+    password = options.password
+
+  port = options.port
+  protocol = options.protocol
+
+  #options without default value
+  if None in [options.action, options.host, options.cluster, options.config_type]:
+    parser.error(\"One of required options is not passed\")
+
+  action = options.action
+  host = options.host
+  cluster = options.cluster
+  config_type = options.config_type
+
+  accessor = api_accessor(host, user, password, protocol, port)
+  if action == SET_ACTION:
+
+    if not options.file and (not options.key or not options.value):
+      parser.error(\"You should use option (-f) to set file where entire configurations are saved OR (-k) key and (-v) value for one property\")
+    if options.file:
+      action_args = [options.file]
+    else:
+      action_args = [options.key, options.value]
+    return set_properties(cluster, config_type, action_args, accessor)
+
+  elif action == GET_ACTION:
+    if options.file:
+      action_args = [options.file]
+    else:
+      action_args = []
+    return get_properties(cluster, config_type, action_args, accessor)
+
+  elif action == DELETE_ACTION:
+    if not options.key:
+      parser.error(\"You should use option (-k) to set property name witch will be deleted\")
+    else:
+      action_args = [options.key]
+    return delete_properties(cluster, config_type, action_args, accessor)
+  else:
+    logger.error('Action \"{0}\" is not supported. Supported actions: \"get\", \"set\", \"delete\".'.format(action))
+    return -1
+
+if __name__ == \"__main__\":
+  try:
+    sys.exit(main())
+  except (KeyboardInterrupt, EOFError):
+    print(\"\nAborting ... Keyboard Interrupt.\")
+    sys.exit(1)
+" > /tmp/unravel/configs.py
+}
+
 function final_check(){
-    echo "
+    echo "Running final_check.py in the background"
+    echo "\
 from subprocess import call, check_output
-import urllib2,base64,json,argparse
+import urllib2,base64,json,argparse, re, base64
 from time import sleep
-log_dir='/tmp/unravel/'
-print('Removing Crontab job')
-call('( crontab -l | grep -v -F \'python %sfinal_check.py\' ) | crontab -' % log_dir ,shell=True)
+import hdinsight_common.Constants as Constants
+import hdinsight_common.ClusterManifestParser as ClusterManifestParser
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-host','--unravel-host', help='Unravel Server hostname', dest='unravel', required=True)
-parser.add_argument('-user','--username', help='ambari username', required=True)
-parser.add_argument('-pass','--password', help='ambari password', required=True)
-parser.add_argument('-c','--cluster_name', help='ambari cluster name', required=True)
+parser.add_argument('-user','--username', help='Ambari login username')
+parser.add_argument('-pass','--password', help='Ambari login password')
+parser.add_argument('-c','--cluster_name', help='ambari cluster name')
 parser.add_argument('-s','--spark_ver', help='spark version', required=True)
 parser.add_argument('-l','--am_host', help='ambari host', required=True)
 argv = parser.parse_args()
+argv.username = Constants.AMBARI_WATCHDOG_USERNAME
+base64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password
+argv.password = base64.b64decode(base64pwd)
+argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.cluster_name
+unrave_server = argv.unravel
+argv.unravel = argv.unravel.split(':')[0]
+argv.spark_ver = argv.spark_ver.split('.')
+log_dir='/tmp/unravel/'
+spark_def_json = log_dir + 'spark-def.json'
+hive_env_json = log_dir + 'hive-env.json'
+hadoop_env_json = log_dir + 'hadoop-env.json'
+mapred_site_json = log_dir + 'mapred-site.json'
+
 def am_req(api_name=None, full_api=None):
     if api_name:
         result = json.loads(check_output('curl -u {0}:\'{1}\' -s -H \'X-RequestedBy:ambari\' -X GET http://{2}:8080/api/v1/clusters/{3}/{4}'.format(argv.username, argv.password, argv.am_host, argv.cluster_name, api_name), shell=True))
     elif full_api:
         result = json.loads(check_output('curl -u {0}:\'{1}\' -s -H \'X-RequestedBy:ambari\' -X GET {2}'.format(argv.username, argv.password,full_api), shell=True))
     return result
+
 def get_latest_req_stat():
     cluster_requests = am_req(api_name='requests')
     latest_cluster_req = cluster_requests['items'][-1]['href']
     return (am_req(full_api=latest_cluster_req)['Requests']['request_status'])
+
+def get_config(config_name, set_file=None):
+    if set_file:
+        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
+    else:
+        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name), shell=True)
+
 def get_spark_defaults():
     try:
-        spark_defaults =check_output('/var/lib/ambari-server/resources/scripts/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark-defaults'.format(argv.am_host, argv.username, argv.password, argv.cluster_name), shell=True)
+        spark_defaults =check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
+        return ('spark-defaults')
     except:
-        spark_defaults = check_output('/var/lib/ambari-server/resources/scripts/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark2-defaults'.format(argv.am_host, argv.username, argv.password, argv.cluster_name), shell=True)
-    return (spark_defaults)
+        spark_defaults = check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark2-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
+        return ('spark2-defaults')
+
+def restart_services():
+    call('curl -u {0}:\'{1}\' -i -H \'X-Requested-By: ambari\' -X POST -d \'{{\"RequestInfo\": {{\"command\":\"RESTART\",\"context\" :\"Unravel request: Restart Services\",\"operation_level\":\"host_component\"}},\"Requests/resource_filters\":[{{\"hosts_predicate\":\"HostRoles/stale_configs=true\"}}]}}\' http://{2}:8080/api/v1/clusters/{3}/requests > /tmp/Restart.out 2> /tmp/Restart.err < /dev/null &'.format(argv.username, argv.password, argv.am_host, argv.cluster_name),shell=True)
+
+def update_config(config_name,config_key=None,config_value=None, set_file=None):
+    try:
+        if set_file:
+            return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a set -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
+        else:
+            return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a set -c {4} -k {5} -v {6}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, config_key, config_value), shell=True)
+    except:
+        print('\Update %s configuration failed' % config_name)
+
+core_site = get_config('core-site')
+hdfs_url = json.loads(core_site[core_site.find('properties\":')+13:])['fs.defaultFS']
+hive_env_content = 'export AUX_CLASSPATH=\${AUX_CLASSPATH}:/usr/local/unravel_client/unravel-hive-1.2.0-hook.jar'
+hadoop_env_content = 'export HADOOP_CLASSPATH=\${HADOOP_CLASSPATH}:/usr/local/unravel_client/unravel-hive-1.2.0-hook.jar'
+hive_site_configs = {'hive.exec.driver.run.hooks': 'com.unraveldata.dataflow.hive.hook.HiveDriverHook',
+                    'com.unraveldata.hive.hdfs.dir': '/user/unravel/HOOK_RESULT_DIR',
+                    'com.unraveldata.hive.hook.tcp': 'true',
+                    'com.unraveldata.host':argv.unravel}
+spark_defaults_configs={'spark.eventLog.dir':hdfs_url + '/var/log/spark/apps',
+                        'spark.history.fs.logDirectory':hdfs_url + '/var/log/spark/apps',
+                        'spark.unravel.server.hostport':argv.unravel+':4043',
+                        'spark.driver.extraJavaOptions':'-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:/usr/local/unravel-agent/jars/btrace-agent.jar=libs=spark-%s.%s,config=driver' % (argv.spark_ver[0],argv.spark_ver[1]),
+                        'spark.executor.extraJavaOptions':'-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:/usr/local/unravel-agent/jars/btrace-agent.jar=libs=spark-%s.%s,config=executor' % (argv.spark_ver[0],argv.spark_ver[1])}
+mapred_site_configs = {'yarn.app.mapreduce.am.command-opts':'-javaagent:/usr/local/unravel-agent/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport=%s:4043' % argv.unravel,
+                        'mapreduce.task.profile':'true',
+                        'mapreduce.task.profile.maps':'0-5',
+                        'mapreduce.task.profile.reduces':'0-5',
+                        'mapreduce.task.profile.params':'-javaagent:/usr/local/unravel-agent/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport=%s:4043' % argv.unravel}
+
 def main():
+    print('HDFS_URL: ' + hdfs_url)
+    print('Hive-env: ' + hive_env_content)
+    print('Hadoop-env: ' + hadoop_env_content)
+    print('hive-site: ' + str(hive_site_configs))
+    print('spark-defaults: ' + str(spark_defaults_configs))
+    print('mapred-site: ' + str(mapred_site_configs))
     sleep(30)
     print('Checking Ambari Operations')
-    while(get_latest_req_stat() != 'COMPLETED'):
+    while(get_latest_req_stat() not in ['COMPLETED','FAILED']):
         print('Operations Status:' + get_latest_req_stat())
-        sleep(30)
-    print('All Operations are completed, Comparing Spark config')
-    if get_spark_defaults().count('/var/log/spark') == 2:
+        sleep(60)
+    print('All Operations are completed, Comparing configs')
+    # spark-default
+    spark_def_ver = get_spark_defaults()
+    with open(spark_def_json, 'r') as f:
+        spark_def = f.read()
+        f.close()
+    if all(x in spark_def for _,x in spark_defaults_configs.iteritems()):
         print(get_spark_defaults() + '\n\nSpark Config is correct')
     else:
-        print('Spark Config is not correct re-run unravel_hdi_bootstrap.sh')
-        call('wget https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/HDinsight-spark2.1/unravel_hdi_bootstrap.sh',shell=True)
-        call(['chmod', '+x', 'unravel_hdi_bootstrap.sh'])
-        call('./unravel_hdi_bootstrap.sh --unravel-server %s --spark-version %s' % (argv.unravel, argv.spark_ver),shell=True)
+        print(spark_def + '\n')
+        print('Spark Config is not correct')
+        new_spark_def = json.loads('{' + spark_def + '}')
+        for key,val in spark_defaults_configs.iteritems():
+            if (key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and val not in spark_def:
+                new_spark_def['properties'][key] += ' ' + val
+            elif key != 'spark.driver.extraJavaOptions' and key != 'spark.executor.extraJavaOptions':
+                new_spark_def['properties'][key] = val
+        with open(spark_def_json, 'w') as f:
+            f.write(json.dumps(new_spark_def)[1:-1])
+            f.close()
+        update_config(spark_def_ver, set_file=spark_def_json)
+    sleep(5)
+    # hive-env
+    get_config('hive-env', set_file=hive_env_json)
+    with open(hive_env_json,'r') as f:
+        hive_env = f.read()
+        f.close()
+    if hive_env_content.split(' ')[1] in hive_env:
+        print('\nAUX_CLASSPATH is in hive')
+    else:
+        print(hive_env)
+        print('\nAUX_CLASSPATH is missing')
+        # print(hive_env)
+        content = hive_env[hive_env.find('\"content\": \"')+12:hive_env.find('{% endif %}\"')+11]
+        new_content = json.dumps(content + '\n' + hive_env_content)[1:-1]
+        sleep(2)
+        with open(hive_env_json,'w') as f:
+            f.write(hive_env.replace(content, new_content, 1))
+            f.close()
+        update_config('hive-env', set_file=hive_env_json)
+        sleep(5)
+    # hive-site
+    hive_site = get_config('hive-site')
+    if all(x in hive_site for _,x in hive_site_configs.iteritems()):
+        print('\nCustom hive-site configs are correct')
+    else:
+        print(hive_site + '\n')
+        print('\nCustom hive-site configs are missing')
+    sleep(5)
+    # hadoop-env
+    get_config('hadoop-env', set_file=hadoop_env_json)
+    with open(hadoop_env_json,'r') as f:
+        hadoop_env = f.read()
+        f.close()
+    if hadoop_env.find(hadoop_env_content.split(' ')[1]) > -1:
+        print('\nHADOOP_CLASSPATH is correct')
+    else:
+        print(hadoop_env + '\n')
+        print('\nHADOOP_CLASSPATH is missing, updating')
+        # print(hadoop_env)
+        content = hadoop_env[hadoop_env.find('\"content\": \"')+12:hadoop_env.find('hdfs_user_nofile_limit')-6]
+        new_content = json.dumps(content + '\n' + hadoop_env_content)[1:-1]
+        sleep(2)
+        with open(hadoop_env_json,'w') as f:
+            f.write(hadoop_env.replace(content, new_content, 1))
+            f.close()
+        update_config('hadoop-env', set_file=hadoop_env_json)
+        sleep(5)
+    # mapred-site
+    get_config('mapred-site',set_file=mapred_site_json)
+    with open(mapred_site_json,'r') as f:
+        mapred_site = json.loads('{' + f.read() + '}')
+        f.close()
+    # print(mapred_site)
+    try:
+        check_mapr_site = all(val in mapred_site['properties'][key] for key, val in mapred_site_configs.iteritems())
+    except Exception as e:
+        print(e)
+        check_mapr_site = False
+    if check_mapr_site:
+        print('\nmapred-site correct')
+    else:
+        print(json.dumps(mapred_site,indent=2) + '\n')
+        print('\nmapr-site missing')
+        for key,val in mapred_site_configs.iteritems():
+            if key == 'yarn.app.mapreduce.am.command-opts' and val not in mapred_site['properties'][key]:
+                mapred_site['properties'][key] += ' ' + val
+            else:
+                mapred_site['properties'][key] = val
+        with open(mapred_site_json,'w') as f:
+            f.write(json.dumps(mapred_site)[1:-1])
+            f.close()
+        update_config('mapred-site', set_file=mapred_site_json)
+
+    restart_services()
+
 if __name__ == '__main__':
     main()
 
-
 " > /tmp/unravel/final_check.py
-    (crontab -l; echo "* * * * * sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -user ${AMBARI_USR} -pass '${AMBARI_PWD}' -c ${CLUSTER_ID} -s ${SPARK_VER_XYZ} > /tmp/unravel/final_check.log") | crontab -
+    ( sudo nohup python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} > /tmp/unravel/final_check.log 2>/tmp/unravel/final_check.err &)
 }
 
 # dump the contents of env variables and shell settings
@@ -2276,5 +2806,6 @@ install -y $*
 
 # inject the python script
 if [ ${HOST_ROLE} == "master" ]; then
+    configs_py
     final_check
 fi
