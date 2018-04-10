@@ -2609,6 +2609,7 @@ parser.add_argument('-user','--username', help='Ambari login username')
 parser.add_argument('-pass','--password', help='Ambari login password')
 parser.add_argument('-c','--cluster_name', help='ambari cluster name')
 parser.add_argument('-s','--spark_ver', help='spark version', required=True)
+parser.add_argument('-hive','--hive_ver', help='hive version', required=True)
 parser.add_argument('-l','--am_host', help='ambari host', required=True)
 argv = parser.parse_args()
 argv.username = Constants.AMBARI_WATCHDOG_USERNAME
@@ -2618,6 +2619,7 @@ argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.clus
 unrave_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
 argv.spark_ver = argv.spark_ver.split('.')
+argv.hive_ver = argv.hive_ver.split('.')
 log_dir='/tmp/unravel/'
 spark_def_json = log_dir + 'spark-def.json'
 hive_env_json = log_dir + 'hive-env.json'
@@ -2664,8 +2666,8 @@ def update_config(config_name,config_key=None,config_value=None, set_file=None):
 
 core_site = get_config('core-site')
 hdfs_url = json.loads(core_site[core_site.find('properties\":')+13:])['fs.defaultFS']
-hive_env_content = 'export AUX_CLASSPATH=\${AUX_CLASSPATH}:/usr/local/unravel_client/unravel-hive-1.2.0-hook.jar'
-hadoop_env_content = 'export HADOOP_CLASSPATH=\${HADOOP_CLASSPATH}:/usr/local/unravel_client/unravel-hive-1.2.0-hook.jar'
+hive_env_content = 'export AUX_CLASSPATH=\${AUX_CLASSPATH}:/usr/local/unravel_client/unravel-hive-%s.%s.0-hook.jar' % (argv.hive_ver[0],argv.hive_ver[1])
+hadoop_env_content = 'export HADOOP_CLASSPATH=\${HADOOP_CLASSPATH}:/usr/local/unravel_client/unravel-hive-%s.%s.0-hook.jar' % (argv.hive_ver[0],argv.hive_ver[1])
 hive_site_configs = {'hive.exec.driver.run.hooks': 'com.unraveldata.dataflow.hive.hook.HiveDriverHook',
                     'com.unraveldata.hive.hdfs.dir': '/user/unravel/HOOK_RESULT_DIR',
                     'com.unraveldata.hive.hook.tcp': 'true',
@@ -2793,7 +2795,7 @@ if __name__ == '__main__':
     main()
 
 " > /tmp/unravel/final_check.py
-    ( sudo nohup python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} > /tmp/unravel/final_check.log 2>/tmp/unravel/final_check.err &)
+    ( sudo nohup python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} > /tmp/unravel/final_check.log 2>/tmp/unravel/final_check.err &)
 }
 
 # dump the contents of env variables and shell settings
