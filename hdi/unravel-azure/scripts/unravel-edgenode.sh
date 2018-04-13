@@ -4,7 +4,7 @@ apt-get install --assume-yes  wget
 
 ## Download and extract the tar ball
 
-wget http://preview.unraveldata.com/unravel/RPM/4.2.7/Azure/unravel-package.tar.gz  -O /usr/local/unravel-package.tar.gz
+wget https://unravelstorage01.blob.core.windows.net/unravel-app-blob-2018-04-13/unravel-package.tar.gz  -O /usr/local/unravel-package.tar.gz
 cd  /usr/local
 tar -zxvf unravel-package.tar.gz
 
