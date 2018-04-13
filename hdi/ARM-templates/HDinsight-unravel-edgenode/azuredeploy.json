@@ -10,18 +10,19 @@
     },
     "scriptActionUri1": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/rluiunravel/AWSCF/master/1127b/unravel-edgenode.sh",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-edgenode.sh",
       "metadata": {
         "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
       }
     },
     "scriptActionUri2": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/rluiunravel/AWSCF/master/1127b/unravel-instrumentation.sh",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-instrumentation.sh",
       "metadata": {
         "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
       }
     }
+
   },
   "variables": {
     "applicationName1": "edgenode",
@@ -55,7 +56,14 @@
                   "parameters": "",
                   "roles": ["edgenode"]
             }],
-            "uninstallScriptActions": [],
+            "uninstallScriptActions": [{
+                "name": "[concat('emptynode','-' ,'uninstall-unravel')]",
+                "uri": "[parameters('scriptActionUri2')]",
+                "parameters": "uninstall",
+                "roles": ["edgenode"],
+                "isPersisted": false
+            }],
+
             "httpsEndpoints": [],
             "applicationType": "CustomApplication"
         }
