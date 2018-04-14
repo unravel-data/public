@@ -17,6 +17,13 @@
     },
     "scriptActionUri2": {
       "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/hdi_premises_sensor_deploy.sh",
+      "metadata": {
+        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+      }
+    },
+    "scriptActionUri3": {
+      "type": "string",
       "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-instrumentation.sh",
       "metadata": {
         "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
@@ -25,8 +32,9 @@
 
   },
   "variables": {
-    "applicationName1": "edgenode",
-    "applicationName2": "inst"
+    "applicationName1": "unravel-install",
+    "applicationName2": "sensors-deploy",
+    "applicationName3": "instrumenation"
   },
   "resources": [
     {
@@ -51,14 +59,24 @@
                 "parameters": "",
                 "roles": ["edgenode"]
                 },
-                { "name": "[concat('emptynode','-' ,variables('applicationName2'))]",
+                { "name": "[concat('unravel','-' ,variables('applicationName2'))]",
                   "uri": "[parameters('scriptActionUri2')]",
+                  "isPersisted": true,
+                  "parameters": "",
+                  "roles": [
+                             "edgenode",
+                             "workernode",
+                             "headnode"
+                           ]
+                },  
+                { "name": "[concat('unravel','-' ,variables('applicationName3'))]",
+                  "uri": "[parameters('scriptActionUri3')]",
                   "parameters": "",
                   "roles": ["edgenode"]
             }],
             "uninstallScriptActions": [{
-                "name": "[concat('emptynode','-' ,'uninstall-unravel')]",
-                "uri": "[parameters('scriptActionUri2')]",
+                "name": "[concat('unravel','-' ,'rollback-instrumentation')]",
+                "uri": "[parameters('scriptActionUri3')]",
                 "parameters": "uninstall",
                 "roles": ["edgenode"],
                 "isPersisted": false

@@ -1,0 +1,8 @@
+{
+    "handler": "Microsoft.HDInsight",
+    "version": "0.0.1-preview",
+    "clusterFilters": {
+        "types": ["Hadoop", "Spark"],
+        "versions": ["3.6"]
+    }
+}
