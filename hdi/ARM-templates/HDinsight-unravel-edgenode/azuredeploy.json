@@ -38,7 +38,7 @@
   },
   "resources": [
     {
-        "name": "[concat(parameters('clusterName'),'/', variables('applicationName1'), '-', variables('applicationName2'))]",
+        "name": "[concat(parameters('clusterName'),'/', 'unravel-edgenode')]",
         "type": "Microsoft.HDInsight/clusters/applications",
         "apiVersion": "2015-03-01-preview",
         "dependsOn": [],
@@ -68,7 +68,7 @@
                              "workernode",
                              "headnode"
                            ]
-                },  
+                },
                 { "name": "[concat('unravel','-' ,variables('applicationName3'))]",
                   "uri": "[parameters('scriptActionUri3')]",
                   "parameters": "",
