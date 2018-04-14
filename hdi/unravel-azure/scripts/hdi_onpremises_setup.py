@@ -1,3 +1,4 @@
+#v1.0.0
 from time import sleep
 from subprocess import call, check_output
 import base64, json, argparse, re, os, urllib, sys
@@ -27,11 +28,22 @@ if not argv.cluster_name:
 if not argv.hive_ver:
     argv.hive_ver = check_output('$(which hive) --version 2>/dev/null | grep -Po \'Hive \K([0-9]+\.[0-9]+\.[0-9]+)\'',shell=True).strip()
     argv.hive_ver = argv.hive_ver.split('.')
+if not argv.spark_ver:
+    try:
+        if get_spark_defaults() == 'spark2-defaults':
+            argv.spark_ver = check_output('$(find /usr/hdp/*/spark2 -name spark-submit) --version 2>&1 | grep -oP \'.*?version\s+\K([0-9.]+)\'',shell=True).split('\n')[0].split('.')
+        elif get_spark_defaults() == 'spark-defaults':
+            argv.spark_ver = check_output('$(find /usr/hdp/*/spark -name spark-submit) --version 2>&1 | grep -oP \'.*?version\s+\K([0-9.]+)\'',shell=True).split('\n')[0].split('.')
+    except:
+        argv.spark_ver = '2.1.0'.split('.')
+else:
+    argv.spark_ver = argv.spark_ver.split('.')
 hosts_list = check_output('curl -s -u %s:\'%s\' -G "http://%s:8080/api/v1/clusters/%s/hosts" |grep "host_name" |awk \'{ print $3}\' |tr -d \'"\' |grep -vi zk'
                         % (argv.username, argv.password, 'headnodehost', argv.cluster_name),shell=True).strip().split('\n')
 script_location = 'https://raw.githubusercontent.com/Unravel-Andy/hdingisht/master/on-premises/hdi_premises_sensor_deploy_.sh'
 
 log_dir='/tmp/unravel/'
+script_dir='/usr/local/unravel/'
 spark_def_json = log_dir + 'spark-def.json'
 hive_env_json = log_dir + 'hive-env.json'
 hive_site_json = log_dir + 'hive-site.json'
@@ -40,23 +52,18 @@ mapred_site_json = log_dir + 'mapred-site.json'
 tez_site_json = log_dir + 'tez-site.json'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-if not os.path.exists(log_dir + 'configs.py'):
-    print('Downloading configs.py')
-    urllib.urlretrieve("https://raw.githubusercontent.com/Unravel-Andy/hdingisht/master/configs.py", log_dir + "configs.py")
+if not os.path.exists(script_dir + 'configs.py'):
+    print('configs.py not exists in %s' % script_dir)
+    exit()
 sys.stderr = open(log_dir + 'hdi_onpremises_setup.err','w')
 
+
+#####################################################################
+# All Unravel HDP Configurations go in here                         #
+#####################################################################
 def global_var():
     global argv, core_site, hdfs_url, hive_env_content, hadoop_env_content, hive_site_configs, spark_defaults_configs, mapred_site_configs, tez_site_configs
-    if not argv.spark_ver:
-        try:
-            if get_spark_defaults() == 'spark2-defaults':
-                argv.spark_ver = check_output('$(find /usr/hdp/*/spark2 -name spark-submit) --version 2>&1 | grep -oP \'.*?version\s+\K([0-9.]+)\'',shell=True).split('\n')[0].split('.')
-            elif get_spark_defaults() == 'spark-defaults':
-                argv.spark_ver = check_output('$(find /usr/hdp/*/spark -name spark-submit) --version 2>&1 | grep -oP \'.*?version\s+\K([0-9.]+)\'',shell=True).split('\n')[0].split('.')
-        except:
-            argv.spark_ver = '2.1.0'.split('.')
-    else:
-        argv.spark_ver = argv.spark_ver.split('.')
+
     core_site = get_config('core-site')
     hdfs_url = json.loads(core_site[core_site.find('properties\":')+13:])['fs.defaultFS']
     hive_env_content = 'export AUX_CLASSPATH=${AUX_CLASSPATH}:/usr/local/unravel_client/unravel-hive-%s.%s.0-hook.jar' % (argv.hive_ver[0],argv.hive_ver[1])
@@ -100,7 +107,8 @@ def am_req(api_name=None, full_api=None):
     return result
 
 #####################################################################
-# Check current configuration and update if not correct             #
+#    Check current configuration and update if not correct          #
+#           Give None value if need to skip configuration           #
 #####################################################################
 def check_configs(hdfs_url=None,hive_env_content=None,hadoop_env_content=None,hive_site_configs=None,spark_defaults_configs=None,mapred_site_configs=None,tez_site_configs=None):
     print('HDFS_URL: ')
@@ -278,9 +286,9 @@ def deploy_sensor():
 #########################################################################
 def get_config(config_name, set_file=None):
     if set_file:
-        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
+        return check_output('python /usr/local/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
     else:
-        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name), shell=True)
+        return check_output('python /usr/local/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name), shell=True)
 
 #####################################################################
 # Get Ambari Last Operations                                        #
@@ -295,10 +303,10 @@ def get_latest_req_stat():
 #####################################################################
 def get_spark_defaults():
     try:
-        spark_defaults =check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
+        spark_defaults =check_output('python /usr/local/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
         return ('spark-defaults')
     except:
-        spark_defaults = check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark2-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
+        spark_defaults = check_output('python /usr/local/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark2-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
         return ('spark2-defaults')
 
 #####################################################################
@@ -316,6 +324,11 @@ def read_json(json_file_location):
 def restart_services():
     call('curl -u {0}:\'{1}\' -i -H \'X-Requested-By: ambari\' -X POST -d \'{{\"RequestInfo\": {{\"command\":\"RESTART\",\"context\" :\"Unravel request: Restart Services\",\"operation_level\":\"host_component\"}},\"Requests/resource_filters\":[{{\"hosts_predicate\":\"HostRoles/stale_configs=true\"}}]}}\' http://{2}:8080/api/v1/clusters/{3}/requests > /tmp/Restart.out 2> /tmp/Restart.err < /dev/null &'.format(argv.username, argv.password, argv.am_host, argv.cluster_name),shell=True)
 
+#########################################################################
+#   Uninstall Unravel Remove Unravel Configurations                     #
+#   --Configuration gobal variable that need to be removed              #
+#       give None Value if need to skip remove configuration            #
+#########################################################################
 def uninstall_unravel(hdfs_url=None,hive_env_content=None,hadoop_env_content=None,hive_site_configs=None,spark_defaults_configs=None,mapred_site_configs=None,tez_site_configs=None):
     # hive-env
     if hive_env_content:
@@ -425,15 +438,27 @@ def uninstall_unravel(hdfs_url=None,hive_env_content=None,hadoop_env_content=Non
             update_config('tez-site', set_file=tez_site_json)
         sleep(5)
 
+######################################################################################
+#   Update Ambari configuration                                                      #
+#   --config_name configuration name e.g hive-env, spark-defaults                    #
+#   --set_file  path to the new configuration json file                              #
+#   Following value are not required if set_file is given                            #
+#   --config_key    The name of configuration e.g. com.unraveldata.hive.hdfs.dir     #
+#   --config_value  The value of the configuration                                   #
+######################################################################################
 def update_config(config_name,config_key=None,config_value=None, set_file=None):
     try:
         if set_file:
-            return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a set -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
+            return check_output('python /usr/local/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a set -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
         else:
-            return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a set -c {4} -k {5} -v {6}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, config_key, config_value), shell=True)
+            return check_output('python /usr/local/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a set -c {4} -k {5} -v {6}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, config_key, config_value), shell=True)
     except:
         print('\Update %s configuration failed' % config_name)
 
+######################################################################################
+#   Write new configuration back to configuration json file                          #
+#   --json_file_location    path to the configuration json file                      #
+######################################################################################
 def write_json(json_file_location, content_write):
     with open(json_file_location,'w') as f:
         f.write(content_write)
@@ -443,7 +468,7 @@ def main():
     global_var()
     if not argv.uninstall:
         print('\nInstall Unravel\n')
-        deploy_sensor()
+        #deploy_sensor()
 
         check_running_ops()
 
