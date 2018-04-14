@@ -75,7 +75,7 @@
                   "roles": ["edgenode"]
             }],
             "uninstallScriptActions": [{
-                "name": "[concat('unravel','-' ,'rollback-instrumentation')]",
+                "name": "[concat('unravel','-' ,'rollback' ,'-', variables('applicationName3'))]",
                 "uri": "[parameters('scriptActionUri3')]",
                 "parameters": "uninstall",
                 "roles": ["edgenode"],
