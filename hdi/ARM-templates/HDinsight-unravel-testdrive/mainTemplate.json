@@ -1,0 +1,276 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterVNetSubnetName": {
+      "type": "string",
+      "defaultValue": "VSNET01",
+      "metadata": {
+        "description": "The name of the subnet to create in the virtual network."
+      }
+    },
+    "clusterName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the HDInsight cluster to create."
+      }
+    },
+    "clusterType": {
+      "type": "string",
+      "defaultValue": "spark",
+      "metadata": {
+        "description": "The type of HDInsight cluster to create."
+      }
+    },
+    "clusterLoginUserName": {
+      "type": "string",
+      "metadata": {
+        "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+      }
+    },
+    "clusterLoginPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "sshUserName": {
+      "type": "string",
+      "metadata": {
+        "description": "These credentials can be used to remotely access the cluster and the edge node virtual machine."
+      }
+    },
+    "sshPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "clusterStorageAccountName": {
+      "type": "string",
+      "defaultValue": "unravelstorage01",
+      "metadata": {
+        "description": "The name of the storage account to be created and be used as the cluster's storage."
+      }
+    },
+    "clusterWorkerNodeCount": {
+      "type": "int",
+      "defaultValue": 3,
+      "metadata": {
+        "description": "The number of nodes in the HDInsight cluster."
+      }
+    },
+    "scriptActionUri1": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-edgenode.sh",
+      "metadata": {
+        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+      }
+    },
+    "scriptActionUri2": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/hdi_premises_sensor_deploy.sh",
+      "metadata": {
+        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+      }
+    },
+    "scriptActionUri3": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-instrumentation.sh",
+      "metadata": {
+        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+      }
+    }
+  },
+  "variables": {
+    "defaultApiVersion": "2015-05-01-preview",
+    "clusterVNetName": "VNET01",
+    "virtualNetworkName": "VNET01",
+    "applicationName": "spark-edge",
+    "hadoopZookeeperSize": "Standard_A1",
+    "sparkZookeeperSize": "Standard_A2",
+    "applicationName1": "unravel-install",
+    "applicationName2": "sensors-deploy",
+    "applicationName3": "instrumenation"
+  },
+  "resources": [
+    {
+      "name": "[parameters('clusterName')]",
+      "type": "Microsoft.HDInsight/clusters",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-03-01-preview",
+      "tags": {},
+      "properties": {
+        "clusterVersion": "3.6",
+        "osType": "Linux",
+        "clusterDefinition": {
+          "kind": "[parameters('clusterType')]",
+          "componentVersion": {
+               "Spark": "2.1"
+          },
+          "configurations": {
+            "gateway": {
+              "restAuthCredential.isEnabled": true,
+              "restAuthCredential.username": "[parameters('clusterLoginUserName')]",
+              "restAuthCredential.password": "[parameters('clusterLoginPassword')]"
+            }
+          }
+        },
+        "storageProfile": {
+          "storageaccounts": [
+            {
+              "name": "[concat(parameters('clusterStorageAccountName'),'.blob.core.windows.net')]",
+              "isDefault": true,
+              "container": "[parameters('clusterName')]",
+              "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('clusterStorageAccountName')), variables('defaultApiVersion')).key1]"
+            }
+          ]
+        },
+        "computeProfile": {
+          "roles": [
+            {
+              "name": "headnode",
+              "targetInstanceCount": "2",
+              "hardwareProfile": {
+                "vmSize": "Standard_D3_v2"
+              },
+              "osProfile": {
+                "linuxOperatingSystemProfile": {
+                  "username": "[parameters('sshUserName')]",
+                  "password": "[parameters('sshPassword')]"
+                }
+              },
+              "virtualNetworkProfile": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
+                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
+              }
+            },
+            {
+              "name": "workernode",
+              "targetInstanceCount": "[parameters('clusterWorkerNodeCount')]",
+              "hardwareProfile": {
+                "vmSize": "Standard_D3_v2"
+              },
+              "osProfile": {
+                "linuxOperatingSystemProfile": {
+                  "username": "[parameters('sshUserName')]",
+                  "password": "[parameters('sshPassword')]"
+                }
+              },
+              "virtualNetworkProfile": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
+                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
+              }
+            },
+            {
+              "name": "zookeepernode",
+              "targetInstanceCount": "3",
+              "hardwareProfile": {
+                "vmSize": "[variables(concat(parameters('clusterType'),'ZookeeperSize'))]"
+              },
+              "osProfile": {
+                "linuxOperatingSystemProfile": {
+                  "username": "[parameters('sshUserName')]",
+                  "password": "[parameters('sshPassword')]"
+                }
+              },
+              "virtualNetworkProfile": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
+                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+        "name": "[concat(parameters('clusterName'),'/', 'unravel-edgenode')]",
+        "type": "Microsoft.HDInsight/clusters/applications",
+        "apiVersion": "2015-03-01-preview",
+        "dependsOn": [ "[concat('Microsoft.HDInsight/clusters/',parameters('clusterName'))]" ],
+        "properties": {
+            "marketPlaceIdentifier": "EmptyNode",
+            "computeProfile": {
+                "roles": [{
+                    "name": "edgenode",
+                    "targetInstanceCount": 1,
+                    "hardwareProfile": {
+                        "vmSize": "Standard_D14_v2"
+                    }
+                }]
+            },
+
+
+            "installScriptActions": [{
+                "name": "[concat('emptynode','-' ,variables('applicationName1'))]",
+                "uri": "[parameters('scriptActionUri1')]",
+                "parameters": "",
+                "roles": ["edgenode"]
+                },
+                { "name": "[concat('unravel','-' ,variables('applicationName2'))]",
+                  "uri": "[parameters('scriptActionUri2')]",
+                  "isPersisted": true,
+                  "parameters": "",
+                  "roles": [
+                             "edgenode",
+                             "workernode",
+                             "headnode"
+                           ]
+                },
+                { "name": "[concat('unravel','-' ,variables('applicationName3'))]",
+                  "uri": "[parameters('scriptActionUri3')]",
+                  "parameters": "",
+                  "roles": ["edgenode"]
+            }],
+            "uninstallScriptActions": [{
+                "name": "[concat('unravel','-' ,'rollback' ,'-', variables('applicationName3'))]",
+                "uri": "[parameters('scriptActionUri3')]",
+                "parameters": "uninstall",
+                "roles": ["edgenode"],
+                "isPersisted": false
+            }],
+
+            "httpsEndpoints": [{
+                 "subDomainSuffix": "unr",
+                 "destinationPort": 3000,
+                 "disableGatewayAuth": true,
+                 "accessModes": ["webpage"]
+            }],
+
+            "applicationType": "CustomApplication"
+        }
+    }
+  ],
+  "outputs": {
+    "cluster": {
+      "type": "object",
+      "value": "[reference(resourceId('Microsoft.HDInsight/clusters',parameters('clusterName')))]"
+    },
+
+    "Unravel Edgenode": {
+      "type": "string",
+      "value": "[concat('unravel-edgenode','.',parameters('clusterName'),'-','ssh.azurehdinsight.net')]"
+    },
+
+    "Cluster Login Name": {
+      "type": "string",
+      "value": "[parameters('clusterLoginUserName')]"
+    },
+
+    "Cluster Login Password": {
+      "type": "string",
+      "value": "[parameters('clusterLoginPassword')]"
+    },
+
+    "ssh Login Name": {
+      "type": "string",
+      "value": "[parameters('sshUserName')]"
+    },
+
+    "ssh Login Password": {
+      "type": "string",
+      "value": "[parameters('sshPassword')]"
+    }
+
+  }
+}

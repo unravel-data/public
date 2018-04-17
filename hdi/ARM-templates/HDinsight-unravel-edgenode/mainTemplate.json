@@ -82,7 +82,14 @@
                 "isPersisted": false
             }],
 
-            "httpsEndpoints": [],
+            "httpsEndpoints": [{
+                 "subDomainSuffix": "unr",
+                 "destinationPort": 3000,
+                 "disableGatewayAuth": true,
+                 "accessModes": ["webpage"]
+            }],
+
+
             "applicationType": "CustomApplication"
         }
     }
