@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue": "ubdemez9i01",
+      "metadata": {
+        "description": "The name of the HDInsight cluster to create."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "The location where all azure resources will be deployed."
+       }
+     },
+     "baseUri": {
+       "type": "string",
+       "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/testdrive/",
+       "metadata": {
+        "description": "The URL path for templates."
+       }
+     }
+
+  },
+  "variables": {
+     "defaultApiVersion": "2015-05-01-preview",
+     "applicationName1": "unravel-install",
+     "applicationName2": "sensors-deploy",
+     "applicationName3": "instrumenation"
+  },
+  "resources": [
+
+    {
+      "apiVersion": "2015-01-01",
+      "name": "linkedTemplate",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+      "mode": "Incremental",
+      "templateLink": {
+        "uri": "[concat(parameters('baseUri'),'template.json')]",
+        "contentVersion": "1.0.0.0"
+      },
+
+      "parameters": {
+        "clusterName": { "value": "[parameters('clusterName')]" },
+        "location": { "value": "[parameters('location')]" },
+        "baseUri": { "value": "[parameters('baseUri')]" }
+      }
+    }
+  }],
+  
+
+  "outputs": {
+    "Unravel Edgenode": {
+      "type": "string",
+      "value": "[concat('unravel-edgenode','.',parameters('clusterName'),'-','ssh.azurehdinsight.net')]"
+    }
+  }
+}
