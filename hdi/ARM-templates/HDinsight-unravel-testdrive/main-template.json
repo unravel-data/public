@@ -25,7 +25,7 @@
     },
     "clusterLoginPassword": {
       "type": "securestring",
-      "defaultValue": "demoPass123!",
+      "defaultValue": "***********",
       "metadata": {
         "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
       }
@@ -39,7 +39,7 @@
     },
     "sshPassword": {
       "type": "securestring",
-      "defaultValue": "demoPass123!",
+      "defaultValue": "************",
       "metadata": {
         "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
       }
