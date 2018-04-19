@@ -8,6 +8,126 @@
         "description": "The name of the HDInsight cluster that associate to this edge node."
       }
     },
+
+   "edgeNodeSize": {
+        "type": "string",
+        "metadata": {
+            "description": "Size of the edge node that hosts the application"
+         },
+         "defaultValue": "Standard_D13_V2",
+         "allowedValues": [
+            "Standard_D13_V2",
+            "Standard_D14_V2",
+            "Standard_D15_V2",
+            "Standard_D16_V3",
+            "Standard_D32_V3"
+          ]
+     },
+
+    "galleryPackageIdentity": {
+         "type": "string",
+         "metadata": {
+             "description": "Unraveldata APM for HDInsight Spark2 cluster."
+          },
+          "defaultValue": "Unraveldata-APM"
+     },
+
+     "clusterHeadNodeSize": {
+         "type": "string",
+          "defaultValue": "Standard_D12_v2",
+          "allowedValues": [
+             "Standard_D3_v2",
+             "Standard_D4_v2",
+             "Standard_D5_v2",
+             "Standard_D11_v2",
+             "Standard_D12_v2",
+             "Standard_D13_v2",
+             "Standard_D14_v2",
+             "Standard_D15_v2",
+             "Standard_D3",
+             "Standard_D4",
+             "Standard_D5"
+          ],
+          "metadata": {
+              "description": "The size of the head nodes in the HDInsight Spark cluster."
+          }
+      },
+      "clusterWorkerNodeSize": {
+          "type": "string",
+          "defaultValue": "Standard_D13_v2",
+          "allowedValues": [
+              "Standard_D1_v2",
+              "Standard_D2_v2",
+              "Standard_D3_v2",
+              "Standard_D4_v2",
+              "Standard_D5_v2",
+              "Standard_D12_v2",
+              "Standard_D13_v2",
+              "Standard_D14_v2",
+              "Standard_D15_v2",
+              "Standard_D1",
+              "Standard_D2",
+              "Standard_D3",
+              "Standard_D4",
+              "Standard_D5"
+          ],
+          "metadata": {
+              "description": "The size of the head nodes in the HDInsight Spark cluster."
+          }
+      },
+
+     "location": {
+         "type": "string",
+         "defaultValue": "East US",
+         "allowedValues": [
+             "East US",
+             "East US 2",
+             "North Central US",
+             "South Central US",
+             "West US",
+             "North Europe",
+             "West Europe",
+             "East Asia",
+             "Southeast Asia",
+             "Japan East",
+             "Japan West",
+             "Australia East",
+             "Australia Southeast"
+         ],
+         "metadata": {
+             "description": "The location where all azure resources will be deployed."
+         }
+      },
+     "clusterType": {
+         "type": "string",
+          "defaultValue": "spark",
+          "allowedValues": [
+              "spark"
+          ],
+          "metadata": {
+             "description": "The type of the HDInsight cluster to create."
+          }
+      },
+      "sparkVersion": {
+          "type": "string",
+          "metadata": {
+              "description": "The Spark version to be installed on the cluster."
+          },
+          "allowedValues": [
+              "2.1",
+              "2.2"
+          ],
+          "defaultValue": "2.1"
+      },
+
+      "clusterWorkerNodeCount": {
+          "type": "int",
+          "defaultValue": 3,
+          "metadata": {
+              "description": "The number of nodes in the HDInsight cluster."
+          }
+      },
+
     "scriptActionUri1": {
       "type": "string",
       "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-edgenode.sh",
@@ -49,7 +169,7 @@
                     "name": "edgenode",
                     "targetInstanceCount": 1,
                     "hardwareProfile": {
-                        "vmSize": "Standard_D14_v2"
+                        "vmSize": "[parameters('edgeNodeSize')]"
                     }
                 }]
             },
