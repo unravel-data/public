@@ -2,15 +2,9 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "clusterVNetSubnetName": {
-      "type": "string",
-      "defaultValue": "VSNET01",
-      "metadata": {
-        "description": "The name of the subnet to create in the virtual network."
-      }
-    },
     "clusterName": {
       "type": "string",
+      "defaultValue": "jjbnhjkmu",
       "metadata": {
         "description": "The name of the HDInsight cluster to create."
       }
@@ -24,33 +18,30 @@
     },
     "clusterLoginUserName": {
       "type": "string",
+      "defaultValue": "unravel",
       "metadata": {
         "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
       }
     },
     "clusterLoginPassword": {
       "type": "securestring",
+      "defaultValue": "demoPass123!",
       "metadata": {
         "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
       }
     },
     "sshUserName": {
       "type": "string",
+      "defaultValue": "centos",
       "metadata": {
         "description": "These credentials can be used to remotely access the cluster and the edge node virtual machine."
       }
     },
     "sshPassword": {
       "type": "securestring",
+      "defaultValue": "demoPass123!",
       "metadata": {
         "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
-      }
-    },
-    "clusterStorageAccountName": {
-      "type": "string",
-      "defaultValue": "unravelstorage01",
-      "metadata": {
-        "description": "The name of the storage account to be created and be used as the cluster's storage."
       }
     },
     "clusterWorkerNodeCount": {
@@ -84,22 +75,108 @@
   },
   "variables": {
     "defaultApiVersion": "2015-05-01-preview",
-    "clusterVNetName": "VNET01",
-    "virtualNetworkName": "VNET01",
+    "location": "[resourceGroup().location]",
     "applicationName": "spark-edge",
     "hadoopZookeeperSize": "Standard_A1",
     "sparkZookeeperSize": "Standard_A2",
+    "clusterStorageAccountName": "[concat('unrdemo',uniquestring(resourceGroup().id))]",
+    "domainNameLabel": "[concat('unrdemo',uniquestring(resourceGroup().id))]",
     "applicationName1": "unravel-install",
     "applicationName2": "sensors-deploy",
-    "applicationName3": "instrumenation"
+    "applicationName3": "instrumenation",
+    "pubIpName": "[concat(parameters('clusterName'),'-ip')]",
+    "pubIpId": "[resourceId('Microsoft.Network/publicIPAddresses',variables('pubIpName'))]",
+    "vnetName": "[concat(parameters('clusterName'),'-vnet')]",
+    "vnetId": "[resourceId('Microsoft.Network/virtualNetworks',variables('vnetName'))]",
+    "ipconfName": "[concat(parameters('clusterName'),'-ipconf')]",
+    "subnetName": "[concat(parameters('clusterName'),'-subnet')]",
+    "intName": "[concat(parameters('clusterName'),'-intf')]",
+    "intId": "[resourceId('Microsoft.Network/networkInterfaces',variables('intName'))]"
   },
   "resources": [
+
+   {
+     "name": "[variables('clusterStorageAccountName')]",
+     "type": "Microsoft.Storage/storageAccounts",
+     "location": "[variables('location')]",
+     "apiVersion": "2015-05-01-preview",
+     "dependsOn": [],
+     "tags": {},
+     "properties": {
+     "accountType": "Standard_LRS"
+      }
+    },
+
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('pubIpName')]",
+      "apiVersion": "2015-06-15",
+      "location": "[variables('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('domainNameLabel')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vnetName')]",
+      "apiVersion": "2015-06-15",
+      "location": "[variables('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "10.0.0.0/24"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('intName')]",
+      "apiVersion": "2015-06-15",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[variables('pubIpId')]",
+        "[variables('vnetId')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "[variables('ipconfName')]",
+            "properties": {
+              "subnet": {
+                "id": "[concat(variables('vnetId'),'/subnets/',variables('subnetName'))]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[variables('pubIpId')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+
+
     {
       "name": "[parameters('clusterName')]",
-      "type": "Microsoft.HDInsight/clusters",
-      "location": "[resourceGroup().location]",
       "apiVersion": "2015-03-01-preview",
+      "type": "Microsoft.HDInsight/clusters",
+      "location": "[variables('location')]",
       "tags": {},
+      "dependsOn": [
+         "[concat('Microsoft.Storage/storageAccounts/',variables('clusterStorageAccountName'))]"
+      ],
       "properties": {
         "clusterVersion": "3.6",
         "osType": "Linux",
@@ -119,10 +196,10 @@
         "storageProfile": {
           "storageaccounts": [
             {
-              "name": "[concat(parameters('clusterStorageAccountName'),'.blob.core.windows.net')]",
+              "name": "[concat(variables('clusterStorageAccountName'),'.blob.core.windows.net')]",
               "isDefault": true,
               "container": "[parameters('clusterName')]",
-              "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('clusterStorageAccountName')), variables('defaultApiVersion')).key1]"
+              "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), variables('defaultApiVersion')).key1]"
             }
           ]
         },
@@ -141,9 +218,9 @@
                 }
               },
               "virtualNetworkProfile": {
-                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
-                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
-              }
+                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '/subnets/', variables('subnetName'))]"
+               }
             },
             {
               "name": "workernode",
@@ -158,8 +235,8 @@
                 }
               },
               "virtualNetworkProfile": {
-                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
-                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
+                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '/subnets/', variables('subnetName'))]"
               }
             },
             {
@@ -175,8 +252,8 @@
                 }
               },
               "virtualNetworkProfile": {
-                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
-                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName')), '/subnets/', parameters('clusterVNetSubnetName'))]"
+                "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+                "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '/subnets/', variables('subnetName'))]"
               }
             }
           ]
