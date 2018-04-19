@@ -18,7 +18,7 @@
     },
     "clusterLoginUserName": {
       "type": "string",
-      "defaultValue": "unravel",
+      "defaultValue": "changeme",
       "metadata": {
         "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
       }
@@ -32,7 +32,7 @@
     },
     "sshUserName": {
       "type": "string",
-      "defaultValue": "centos",
+      "defaultValue": "changeme",
       "metadata": {
         "description": "These credentials can be used to remotely access the cluster and the edge node virtual machine."
       }
