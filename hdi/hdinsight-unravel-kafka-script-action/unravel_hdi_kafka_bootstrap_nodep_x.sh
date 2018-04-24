@@ -347,6 +347,8 @@ HEADIP=`ping -c1 headnodehost |grep PING |awk '{print $3}' |tr -d '()'`
 [ -z "$AMBARI_PORT" ] && export AMBARI_PORT=8080
 
 echo "AMBARI_PORT after: ${AMBARI_PORT}"
+echo "AMBARI_HOST: ${AMBARI_HOST}"
+
 
 AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 
