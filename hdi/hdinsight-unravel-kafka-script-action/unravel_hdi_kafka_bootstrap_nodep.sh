@@ -341,10 +341,14 @@ PLATFORM="HDI"
 
 echo "AMBARI_PORT before: ${AMBARI_PORT}"
 
-[ -z "$AMBARI_HOST" ] && export AMBARI_HOST=headnodehost
+HEADIP=`ping -c1 headnodehost |grep PING |awk '{print $3}' |tr -d '()'`
+
+[ -z "$AMBARI_HOST" ] && export AMBARI_HOST=$HEADIP
 [ -z "$AMBARI_PORT" ] && export AMBARI_PORT=8080
 
 echo "AMBARI_PORT after: ${AMBARI_PORT}"
+echo "AMBARI_HOST: ${AMBARI_HOST}"
+
 
 AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 
@@ -366,6 +370,8 @@ function stopServiceViaRest() {
     SERVICENAME=$1
     echo "Stopping $SERVICENAME" | tee -a ${OUT_FILE}
     echo "AMBARI_PORT=$AMBARI_PORT" | tee -a ${OUT_FILE}
+    echo "AMBARI_HOST=$AMBARI_HOST" | tee -a ${OUT_FILE}
+   
     curl -u $AMBARI_USR:$AMBARI_PWD -i -H 'X-Requested-By: ambari' -X PUT -d "{\"RequestInfo\": {\"context\" :\"Unravel request: Stop Service $SERVICENAME\"}, \"Body\": {\"ServiceInfo\": {\"state\": \"INSTALLED\"}}}" http://${AMBARI_HOST}:${AMBARI_PORT}/api/v1/clusters/${CLUSTER_ID}/services/${SERVICENAME}
 }
 
