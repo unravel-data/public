@@ -368,6 +368,8 @@ function stopServiceViaRest() {
     SERVICENAME=$1
     echo "Stopping $SERVICENAME" | tee -a ${OUT_FILE}
     echo "AMBARI_PORT=$AMBARI_PORT" | tee -a ${OUT_FILE}
+    echo "AMBARI_HOST=$AMBARI_HOST" | tee -a ${OUT_FILE}
+   
     curl -u $AMBARI_USR:$AMBARI_PWD -i -H 'X-Requested-By: ambari' -X PUT -d "{\"RequestInfo\": {\"context\" :\"Unravel request: Stop Service $SERVICENAME\"}, \"Body\": {\"ServiceInfo\": {\"state\": \"INSTALLED\"}}}" http://${AMBARI_HOST}:${AMBARI_PORT}/api/v1/clusters/${CLUSTER_ID}/services/${SERVICENAME}
 }
 
