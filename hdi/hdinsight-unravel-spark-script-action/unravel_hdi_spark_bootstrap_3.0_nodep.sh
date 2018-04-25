@@ -855,7 +855,7 @@ function es_install() {
     return 0
   fi
 
-  sudo yum install -y wget
+  #sudo yum install -y wget
 
   sudo /bin/mkdir -p /usr/local/unravel_es/lib
   if [ "$ENABLE_GPL_LZO" == "yes" ] || [ "$ENABLE_GPL_LZO" == "true" ]; then
