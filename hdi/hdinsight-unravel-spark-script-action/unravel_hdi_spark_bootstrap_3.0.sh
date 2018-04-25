@@ -1759,6 +1759,11 @@ function startServiceViaRest() {
     nohup bash -c "sleep 90; curl -u $AMBARI_USR:'$AMBARI_PWD' -i -H 'X-Requested-By: ambari' -X PUT -d '{\"RequestInfo\": {\"context\" :\"Unravel request: Start Service $SERVICENAME\"}, \"Body\": {\"ServiceInfo\": {\"state\": \"STARTED\"}}}' http://${AMBARI_HOST}:${AMBARI_PORT}/api/v1/clusters/${CLUSTER_ID}/services/${SERVICENAME}" > /tmp/Start${SERVICENAME}.out 2> /tmp/Start${SERVICENAME}.err < /dev/null &
 }
 
+
+###############################################################################################
+#   START OF HDInsightUtilities-v01.sh
+#
+###############################################################################################
 function download_file {
     srcurl=$1;
     destfile=$2;
@@ -1871,6 +1876,10 @@ function get_secondary_headnode_number
         secondaryhn=`get_secondary_headnode`
         echo "`(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $secondaryhn)`"
 }
+###############################################################################################
+#   END OF HDInsightUtilities-v01.sh
+#
+###############################################################################################
 
 
 function cluster_detect() {
