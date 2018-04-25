@@ -859,7 +859,18 @@ function es_install() {
 
   sudo /bin/mkdir -p /usr/local/unravel_es/lib
   if [ "$ENABLE_GPL_LZO" == "yes" ] || [ "$ENABLE_GPL_LZO" == "true" ]; then
-    sudo cp /tmp/lzo-core.jar > /usr/local/unravel_es/lib/lzo-core.jar
+    sudo wget --timeout=15 -t 2 -4 -q -T 10 -t 5 -O - http://central.maven.org/maven2/org/anarres/lzo/lzo-core/1.0.5/lzo-core-1.0.5.jar > /usr/local/unravel_es/lib/lzo-core.jar
+    if [ $? -eq 0 ]; then
+        echo "lzo-core-1.0.5.jar Downloaded "
+    else
+        echo "Failed to Download lzo-core-1.0.5.jar"
+        echo "If the cluster has restricted internet access please download lzo-core-1.0.5.jar and copy it to  /tmp/"
+        if [ -f /tmp/lzo-core-1.0.5.jar ]; then
+            sudo mv /tmp/lzo-core-1.0.5.jar /usr/local/unravel_es/lib/lzo-core.jar
+        else
+            exit 1
+        fi
+    fi
   fi
 
   # generate /etc/init.d/unravel_es
@@ -2995,7 +3006,7 @@ if __name__ == '__main__':
     main()
 
 " > /tmp/unravel/final_check.py
-    ( sudo nohup python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} > /tmp/unravel/final_check.log 2>/tmp/unravel/final_check.err &)
+    ( sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} )
 }
 
 # dump the contents of env variables and shell settings
