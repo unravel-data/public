@@ -556,6 +556,27 @@ function cluster_detect() {
   export cluster=${CLUSTER_ID,,}
 
   #sudo apt-get -y install jq
+
+######################################################################################################
+#                                                                                                    #
+#  Get the jq from your own blob content                                                             #
+#  You need to download and jq and libonig2 deb packages from                                        #
+#  https://unravelstorage01.blob.core.windows.net/unravel-app-blob-2018-04-13/jq_and_libonig2.tar    #
+#  update and uncomment the following lines of script for jq install from your blob store            #
+#                                                                                                    #
+######################################################################################################
+#
+#  wget https://<BLOBSTORE_ACCOUNT>.blob.core.windows.net/<BLOBSTORE_NAME>/jq_and_libonig2.tar  -O /tmp/jq_and_libonig2.tar
+#  tar -xvf  /tmp/jq_and_libonig2.tar -C /tmp
+#  sudo dpkg -i /tmp/libonig2_5.9.6-1_amd64.deb
+#  sudo dpkg -i /tmp/jq_1.5+dfsg-1_amd64.deb
+#
+#######################################################################################################
+#                                                                                                     #
+#  End of installing jq, uncomment above for jq installation from blob store                          #
+#                                                                                                     #
+#######################################################################################################
+
   export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
   export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
   export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
