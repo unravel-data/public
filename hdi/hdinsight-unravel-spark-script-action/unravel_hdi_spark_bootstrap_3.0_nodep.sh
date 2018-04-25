@@ -2987,10 +2987,10 @@ tez_site_configs = {
 def main():
     sleep(30)
     print('Checking Ambari Operations')
-    while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED']):
-        print('Operations Status:' + get_latest_req_stat())
-        sleep(60)
-    print('All Operations are completed, Comparing configs')
+    #while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED']):
+    #    print('Operations Status:' + get_latest_req_stat())
+    #    sleep(60)
+    #print('All Operations are completed, Comparing configs')
 
     check_configs(
                   hive_env_content=hive_env_content,
