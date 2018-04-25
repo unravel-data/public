@@ -855,11 +855,22 @@ function es_install() {
     return 0
   fi
 
-  sudo yum install -y wget
+  # sudo yum install -y wget
 
   sudo /bin/mkdir -p /usr/local/unravel_es/lib
   if [ "$ENABLE_GPL_LZO" == "yes" ] || [ "$ENABLE_GPL_LZO" == "true" ]; then
-    sudo wget -4 -q -T 10 -t 5 -O - http://central.maven.org/maven2/org/anarres/lzo/lzo-core/1.0.5/lzo-core-1.0.5.jar > /usr/local/unravel_es/lib/lzo-core.jar
+    sudo wget --timeout=15 -t 2 -4 -q -T 10 -t 5 -O - http://central.maven.org/maven2/org/anarres/lzo/lzo-core/1.0.5/lzo-core-1.0.5.jar > /usr/local/unravel_es/lib/lzo-core.jar
+    if [ $? -eq 0 ]; then
+        echo "lzo-core-1.0.5.jar Downloaded "
+    else
+        echo "Failed to Download lzo-core-1.0.5.jar"
+        echo "If the cluster has restricted internet access please download lzo-core-1.0.5.jar and copy it to  /tmp/"
+        if [ -f /tmp/lzo-core-1.0.5.jar ]; then
+            sudo mv /tmp/lzo-core-1.0.5.jar /usr/local/unravel_es/lib/lzo-core.jar
+        else
+            exit 1
+        fi
+    fi
   fi
 
   # generate /etc/init.d/unravel_es
@@ -1748,9 +1759,125 @@ function startServiceViaRest() {
     nohup bash -c "sleep 90; curl -u $AMBARI_USR:'$AMBARI_PWD' -i -H 'X-Requested-By: ambari' -X PUT -d '{\"RequestInfo\": {\"context\" :\"Unravel request: Start Service $SERVICENAME\"}, \"Body\": {\"ServiceInfo\": {\"state\": \"STARTED\"}}}' http://${AMBARI_HOST}:${AMBARI_PORT}/api/v1/clusters/${CLUSTER_ID}/services/${SERVICENAME}" > /tmp/Start${SERVICENAME}.out 2> /tmp/Start${SERVICENAME}.err < /dev/null &
 }
 
+function download_file {
+    srcurl=$1;
+    destfile=$2;
+    overwrite=$3;
+
+    if [ "$overwrite" = false ] && [ -e $destfile ]; then
+        return;
+    fi
+
+    wget -O $destfile -q $srcurl;
+}
+
+function untar_file
+{
+    zippedfile=$1;
+    unzipdir=$2;
+
+    if [ -e $zippedfile ]; then
+        tar -xf $zippedfile -C $unzipdir;
+    fi
+}
+
+function test_is_headnode
+{
+    shorthostname=`hostname -s`
+    if [[  $shorthostname == headnode* || $shorthostname == hn* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+function test_is_datanode
+{
+    shorthostname=`hostname -s`
+    if [[ $shorthostname == workernode* || $shorthostname == wn* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+function test_is_zookeepernode
+{
+    shorthostname=`hostname -s`
+    if [[ $shorthostname == zookeepernode* || $shorthostname == zk* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+function test_is_first_datanode
+{
+    shorthostname=`hostname -s`
+    if [[ $shorthostname == workernode0 || $shorthostname == wn0-* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+#following functions are used to determine headnodes.
+#Returns fully qualified headnode names separated by comma by inspecting hdfs-site.xml.
+#Returns empty string in case of errors.
+function get_headnodes
+{
+    hdfssitepath=/etc/hadoop/conf/hdfs-site.xml
+    nn1=$(sed -n '/<name>dfs.namenode.http-address.mycluster.nn1/,/<\/value>/p' $hdfssitepath)
+    nn2=$(sed -n '/<name>dfs.namenode.http-address.mycluster.nn2/,/<\/value>/p' $hdfssitepath)
+
+    nn1host=$(sed -n -e 's/.*<value>\(.*\)<\/value>.*/\1/p' <<< $nn1 | cut -d ':' -f 1)
+    nn2host=$(sed -n -e 's/.*<value>\(.*\)<\/value>.*/\1/p' <<< $nn2 | cut -d ':' -f 1)
+
+    nn1hostnumber=$(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $nn1host)
+    nn2hostnumber=$(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $nn2host)
+
+    #only if both headnode hostnames could be retrieved, hostnames will be returned
+    #else nothing is returned
+    if [[ ! -z $nn1host && ! -z $nn2host ]]
+    then
+        if (( $nn1hostnumber < $nn2hostnumber )); then
+                        echo "$nn1host,$nn2host"
+        else
+                        echo "$nn2host,$nn1host"
+        fi
+    fi
+}
+
+function get_primary_headnode
+{
+        headnodes=`get_headnodes`
+        echo "`(echo $headnodes | cut -d ',' -f 1)`"
+}
+
+function get_secondary_headnode
+{
+        headnodes=`get_headnodes`
+        echo "`(echo $headnodes | cut -d ',' -f 2)`"
+}
+
+function get_primary_headnode_number
+{
+        primaryhn=`get_primary_headnode`
+        echo "`(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $primaryhn)`"
+}
+
+function get_secondary_headnode_number
+{
+        secondaryhn=`get_secondary_headnode`
+        echo "`(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $secondaryhn)`"
+}
+
+
 function cluster_detect() {
   # Import the helper method module.
-  wget -O /tmp/HDInsightUtilities-v01.sh -q https://hdiconfigactions.blob.core.windows.net/linuxconfigactionmodulev01/HDInsightUtilities-v01.sh && source /tmp/HDInsightUtilities-v01.sh && rm -f /tmp/HDInsightUtilities-v01.sh
+  #wget --timeout=15 -t 2 -O /tmp/HDInsightUtilities-v01.sh -q https://hdiconfigactions.blob.core.windows.net/linuxconfigactionmodulev01/HDInsightUtilities-v01.sh
+
+  #source /tmp/HDInsightUtilities-v01.sh && rm -f /tmp/HDInsightUtilities-v01.sh
 
   export AMBARI_USR=$(echo -e "import hdinsight_common.Constants as Constants\nprint Constants.AMBARI_WATCHDOG_USERNAME" | python)
   export AMBARI_PWD=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nimport hdinsight_common.Constants as Constants\nimport base64\nbase64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password\nprint base64.b64decode(base64pwd)" | python)
@@ -2851,10 +2978,11 @@ tez_site_configs = {
 def main():
     sleep(30)
     print('Checking Ambari Operations')
-    while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED']):
-        print('Operations Status:' + get_latest_req_stat())
-        sleep(60)
-    print('All Operations are completed, Comparing configs')
+    # print('Checking Ambari Operations')
+    # while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED']):
+    #     print('Operations Status:' + get_latest_req_stat())
+    #     sleep(60)
+    # print('All Operations are completed, Comparing configs')
 
     check_configs(
                   hive_env_content=hive_env_content,
@@ -2870,7 +2998,7 @@ if __name__ == '__main__':
     main()
 
 " > /tmp/unravel/final_check.py
-    ( sudo nohup python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} > /tmp/unravel/final_check.log 2>/tmp/unravel/final_check.err &)
+    ( sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} )
 }
 
 # dump the contents of env variables and shell settings
