@@ -336,6 +336,141 @@ function install() {
 
 }
 
+###########################################################################
+#                                                                         #
+#                                                                         #
+#   HDInsightUtilities functions                                          #
+#                                                                         #
+#                                                                         #
+###########################################################################
+
+function download_file
+{
+    srcurl=$1;
+    destfile=$2;
+    overwrite=$3;
+
+    if [ "$overwrite" = false ] && [ -e $destfile ]; then
+        return;
+    fi
+
+    wget -O $destfile -q $srcurl;
+}
+
+function untar_file
+{
+    zippedfile=$1;
+    unzipdir=$2;
+
+    if [ -e $zippedfile ]; then
+        tar -xf $zippedfile -C $unzipdir;
+    fi
+}
+
+function test_is_headnode
+{
+    shorthostname=`hostname -s`
+    if [[  $shorthostname == headnode* || $shorthostname == hn* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+function test_is_datanode
+{
+    shorthostname=`hostname -s`
+    if [[ $shorthostname == workernode* || $shorthostname == wn* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+function test_is_zookeepernode
+{
+    shorthostname=`hostname -s`
+    if [[ $shorthostname == zookeepernode* || $shorthostname == zk* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+function test_is_first_datanode
+{
+    shorthostname=`hostname -s`
+    if [[ $shorthostname == workernode0 || $shorthostname == wn0-* ]]; then
+        echo 1;
+    else
+        echo 0;
+    fi
+}
+
+#following functions are used to determine headnodes.
+#Returns fully qualified headnode names separated by comma by inspecting hdfs-site.xml.
+#Returns empty string in case of errors.
+function get_headnodes
+{
+    hdfssitepath=/etc/hadoop/conf/hdfs-site.xml
+    echo $hdfssitepath
+    nn1=$(sed -n '/<name>dfs.namenode.http-address.mycluster.nn1/,/<\/value>/p' $hdfssitepath)
+    nn2=$(sed -n '/<name>dfs.namenode.http-address.mycluster.nn2/,/<\/value>/p' $hdfssitepath)
+
+    echo $nn1
+    echo $nn2
+    nn1host=$(sed -n -e 's/.*<value>\(.*\)<\/value>.*/\1/p' <<< $nn1 | cut -d ':' -f 1)
+    nn2host=$(sed -n -e 's/.*<value>\(.*\)<\/value>.*/\1/p' <<< $nn2 | cut -d ':' -f 1)
+
+    echo $nn1host
+    echo $nn2host
+
+    nn1hostnumber=$(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $nn1host)
+    nn2hostnumber=$(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $nn2host)
+
+    echo $nn1hostnumber
+    echo $nn2hostnumber
+
+    #only if both headnode hostnames could be retrieved, hostnames will be returned
+    #else nothing is returned
+    if [[ ! -z $nn1host && ! -z $nn2host ]]
+    then
+        if (( $nn1hostnumber < $nn2hostnumber )); then
+                        echo "$nn1host,$nn2host"
+        else
+                        echo "$nn2host,$nn1host"
+        fi
+    fi
+}
+
+function get_primary_headnode
+{
+        headnodes=`get_headnodes`
+        echo "`(echo $headnodes | cut -d ',' -f 1)`"
+}
+
+function get_secondary_headnode
+{
+        headnodes=`get_headnodes`
+        echo "`(echo $headnodes | cut -d ',' -f 2)`"
+}
+
+function get_primary_headnode_number
+{
+        primaryhn=`get_primary_headnode`
+        echo "`(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $primaryhn)`"
+}
+
+function get_secondary_headnode_number
+{
+        secondaryhn=`get_secondary_headnode`
+        echo "`(sed -n -e 's/hn\(.*\)-.*/\1/p' <<< $secondaryhn)`"
+}                       
+
+#########################################################################
+#   End of HDInsight Utilities                                          #
+#########################################################################
+
 
 PLATFORM="HDI"
 
@@ -375,6 +510,10 @@ function stopServiceViaRest() {
     curl -u $AMBARI_USR:$AMBARI_PWD -i -H 'X-Requested-By: ambari' -X PUT -d "{\"RequestInfo\": {\"context\" :\"Unravel request: Stop Service $SERVICENAME\"}, \"Body\": {\"ServiceInfo\": {\"state\": \"INSTALLED\"}}}" http://${AMBARI_HOST}:${AMBARI_PORT}/api/v1/clusters/${CLUSTER_ID}/services/${SERVICENAME}
 }
 
+
+
+
+
 ###############################################################################################
 # Will start service via Ambari API                                                           #
 #  - args: service name                                                                       #
@@ -399,13 +538,13 @@ function startServiceViaRest() {
 function cluster_detect() {
   # Import the helper method module.
   #wget -O /tmp/HDInsightUtilities-v01.sh -q https://hdiconfigactions.blob.core.windows.net/linuxconfigactionmodulev01/HDInsightUtilities-v01.sh && source /tmp/HDInsightUtilities-v01.sh && rm -f /tmp/HDInsightUtilities-v01.sh
-  source /tmp/HDInsightUtilities-v01.sh
+  #source /tmp/HDInsightUtilities-v01.sh
   export AMBARI_USR=$(echo -e "import hdinsight_common.Constants as Constants\nprint Constants.AMBARI_WATCHDOG_USERNAME" | python)
   export AMBARI_PWD=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nimport hdinsight_common.Constants as Constants\nimport base64\nbase64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password\nprint base64.b64decode(base64pwd)" | python)
 
   export CLUSTER_ID=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nprint ClusterManifestParser.parse_local_manifest().deployment.cluster_name" | python)
 
-  local primary_head_node=$(get_primary_headnode)
+#  local primary_head_node=$(get_primary_headnode)
   local full_host_name=$(hostname -f)
 
   echo "AMBARI_USR=$AMBARI_USR" | tee -a ${OUT_FILE}
@@ -417,11 +556,11 @@ function cluster_detect() {
   export cluster=${CLUSTER_ID,,}
 
   #sudo apt-get -y install jq
-  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
-  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
-  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
-  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
-  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
+  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
+  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
+  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
+  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
+  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${AMBARI_HOST}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
   prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port=9999\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port=9999"
   
   echo "EXT KAFKA PROP=$prop" | tee -a ${OUT_FILE}
@@ -436,16 +575,16 @@ function cluster_detect() {
     fi
   fi
 
-  if [ "${full_host_name,,}" == "${primary_head_node,,}" ]; then
-    HOST_ROLE=master
-  else
-    if [ 1 -eq $(test_is_zookeepernode) ]; then
-      HOST_ROLE=zookeeper
-    else
-      HOST_ROLE=slave
-    fi
-  fi
-  echo "HOST_ROLE=$HOST_ROLE" | tee -a ${OUT_FILE}
+#  if [ "${full_host_name,,}" == "${primary_head_node,,}" ]; then
+#    HOST_ROLE=master
+#  else
+#    if [ 1 -eq $(test_is_zookeepernode) ]; then
+#      HOST_ROLE=zookeeper
+#    else
+#      HOST_ROLE=slave
+#    fi
+#  fi
+#  echo "HOST_ROLE=$HOST_ROLE" | tee -a ${OUT_FILE}
 }
 
 
