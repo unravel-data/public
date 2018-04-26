@@ -35,6 +35,8 @@ chown unravel:unravel /srv/unravel/zk_1_data
 chown unravel:unravel /srv/unravel/zk_2_data
 chown unravel:unravel /srv/unravel/zk_3_data
 
+chown -R unravel:unravel /usr/local/unravel
+
 #sudo chown unravel:unravel k_data s_1_data zk_1_data zk_2_data zk_3_data tmp
 mkdir -p /srv/unravel/s_1_data/unravel14810
 chown -R unravel:unravel  /srv/unravel/s_1_data/unravel14810
