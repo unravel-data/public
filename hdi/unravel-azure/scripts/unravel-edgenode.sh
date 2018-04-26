@@ -58,9 +58,19 @@ sed -i -e "s/UMYSQLP/$MYSQLUNRAVELPASS/g" /usr/local/unravel/etc/unravel.propert
 dpkg --configure -a
 echo "mysql-server mysql-server/root_password password $MYSQLROOTPASS" | debconf-set-selections
 echo "mysql-server mysql-server/root_password_again password $MYSQLROOTPASS" | debconf-set-selections
+
+## apt-get update
+apt-get update
+sleep 10
+echo "done with apt-get update"
+echo "start installing mysql-server"
 apt-get install --assume-yes mysql-server
 
 service mysql start
+echo "started mysql server"
+
+### update mysql database 
+echo "creating  unravel mysql database and user"
 
 echo "create database unravel_mysql_prod DEFAULT CHARACTER SET utf8; grant all on unravel_mysql_prod.* TO 'unravel'@'%' IDENTIFIED BY '$MYSQLUNRAVELPASS'; use unravel_mysql_prod; source /usr/local/unravel/mysql_scripts/20170920015500.sql; source /usr/local/unravel/mysql_scripts/20171008153000.sql; source /usr/local/unravel/mysql_scripts/20171202224307.sql; source /usr/local/unravel/mysql_scripts/20180118103500.sql;" | mysql -u root -p$MYSQLROOTPASS
 
@@ -68,6 +78,8 @@ echo "use unravel_mysql_prod; INSERT  IGNORE INTO \`users\` (\`id\`, \`email\`, 
 
 ## change permission on unravel daemon scripts
 chmod -R 755 /usr/local/unravel/init_scripts
+
+
 
 sleep 20
 ## Starting unravel daemons
