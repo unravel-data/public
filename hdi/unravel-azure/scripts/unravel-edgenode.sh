@@ -60,7 +60,7 @@ echo "mysql-server mysql-server/root_password password $MYSQLROOTPASS" | debconf
 echo "mysql-server mysql-server/root_password_again password $MYSQLROOTPASS" | debconf-set-selections
 
 ## apt-get update
-apt-get update
+sudo apt-get update
 sleep 10
 echo "done with apt-get update"
 echo "start installing mysql-server"
