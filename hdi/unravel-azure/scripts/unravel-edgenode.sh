@@ -56,7 +56,7 @@ echo "MySQL unravel password = $MYSQLUNRAVELPASS"
 
 sed -i -e "s/UMYSQLP/$MYSQLUNRAVELPASS/g" /usr/local/unravel/etc/unravel.properties
 
-## Install mysql
+## Setup mysql root password on debconf
 dpkg --configure -a
 echo "mysql-server mysql-server/root_password password $MYSQLROOTPASS" | debconf-set-selections
 echo "mysql-server mysql-server/root_password_again password $MYSQLROOTPASS" | debconf-set-selections
@@ -68,8 +68,22 @@ echo "done with apt-get update"
 echo "start installing mysql-server"
 apt-get install --assume-yes mysql-server
 
-service mysql start
-echo "started mysql server"
+# Changing mysql configuration for unravel
+echo "stop mysql daemon and update configuration"
+sudo systemctl stop mysql
+sudo mv /etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf.org
+sudo cp /usr/local/unravel/mysqld.cnf /etc/mysql/mysql.conf.d/
+
+# Set LimitNOFILE for mysql to 128000
+echo "set limit of open files for mysql to 128000"
+sudo sh -c 'echo "LimitNOFILE=128000" >> /lib/systemd/system/mysql.service'
+sudo cp /lib/systemd/system/mysql.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Starting mysql server with updated configuration file
+echo "starting mysql server"
+sudo systemctl start mysql
+ps -ef |grep mysqld |head -1
 
 ### update mysql database 
 echo "creating  unravel mysql database and user"
