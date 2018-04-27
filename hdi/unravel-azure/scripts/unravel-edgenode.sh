@@ -78,10 +78,21 @@ echo "create database unravel_mysql_prod DEFAULT CHARACTER SET utf8; grant all o
 
 echo "use unravel_mysql_prod; INSERT  IGNORE INTO \`users\` (\`id\`, \`email\`, \`encrypted_password\`, \`reset_password_token\`, \`reset_password_sent_at\`, \`remember_created_at\`, \`sign_in_count\`, \`current_sign_in_at\`, \`last_sign_in_at\`, \`current_sign_in_ip\`, \`last_sign_in_ip\`, \`created_at\`, \`updated_at\`, \`login\`, \`uid\`, \`authentication_token\`) VALUES (1,'','\$2a\$10\$.8bk4e/5UgD.A5ok13lKvOiVdzh.IMRbwrN0pJbvFZvXZHTitl5Di',NULL,NULL,NULL,1,now(),now(),'127.0.0.1','127.0.0.1',now(),now(),'admin',NULL,NULL); COMMIT;" | mysql -u root -p$MYSQLROOTPASS
 
+## Check cluster storage adl or wasb
+LNUM=`awk '/fs.defaultFS/{ print NR; exit }' /etc/hadoop/*/0/core-site.xml`
+NNUM=`expr $LNUM + 1`
+SPROP=`sed "${NNUM}q;d" /etc/hadoop/*/0/core-site.xml |sed 's/<[^>]*>//g' |sed 's/^[ \t]*//' |cut -d: -f1`
+
+echo "LNUM = $LNUM"
+echo "NNUM = $NNUM"
+echo "SPROP = $SPROP"
+
+if [ "$SPROP" == "adl" ]; then echo "Storage is $SPROP" ; sed -i "s/wasb/$SPROP/g" /usr/local/unravel/etc/unravel.properties ; fi
+
+cat /usr/local/unravel/etc/unravel.properties |grep spark-events
+
 ## change permission on unravel daemon scripts
 chmod -R 755 /usr/local/unravel/init_scripts
-
-
 
 sleep 20
 ## Starting unravel daemons
