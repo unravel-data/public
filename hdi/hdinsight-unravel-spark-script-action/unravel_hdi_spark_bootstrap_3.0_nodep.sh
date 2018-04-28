@@ -1886,7 +1886,7 @@ function get_secondary_headnode_number
 
 function cluster_detect() {
   # Import the helper method module.
-  #source /tmp/HDInsightUtilities-v01.sh 
+  #source /tmp/HDInsightUtilities-v01.sh
 
   export AMBARI_USR=$(echo -e "import hdinsight_common.Constants as Constants\nprint Constants.AMBARI_WATCHDOG_USERNAME" | python)
   export AMBARI_PWD=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nimport hdinsight_common.Constants as Constants\nimport base64\nbase64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password\nprint base64.b64decode(base64pwd)" | python)
@@ -2722,7 +2722,7 @@ function final_check(){
     echo "Running final_check.py in the background"
     echo "\
 #!/usr/bin/env python
-#v1.1.0
+#v1.1.1
 from subprocess import call, check_output
 import urllib2,base64,json,argparse, re, base64
 from time import sleep
@@ -2781,27 +2781,30 @@ def check_configs(hdfs_url=None,hive_env_content=None,hadoop_env_content=None,hi
 
     # spark-default
     if spark_defaults_configs:
-        spark_def_ver = get_spark_defaults()
-        spark_def = read_json(spark_def_json)
+        try:
+            spark_def_ver = get_spark_defaults()
+            spark_def = read_json(spark_def_json)
 
-        if all(x in spark_def for _,x in spark_defaults_configs.iteritems()):
-            print(get_spark_defaults() + '\n\nSpark Config is correct\n')
-        else:
-            print('\n\nSpark Config is not correct\n')
-            new_spark_def = json.loads(spark_def)
-            for key,val in spark_defaults_configs.iteritems():
-                try:
-                    print (key+': ',new_spark_def['properties'][key])
-                    if (key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and val not in spark_def:
-                        new_spark_def['properties'][key] += ' ' + val
-                    elif key != 'spark.driver.extraJavaOptions' and key != 'spark.executor.extraJavaOptions':
+            if all(x in spark_def for _,x in spark_defaults_configs.iteritems()):
+                print(get_spark_defaults() + '\n\nSpark Config is correct\n')
+            else:
+                print('\n\nSpark Config is not correct\n')
+                new_spark_def = json.loads(spark_def)
+                for key,val in spark_defaults_configs.iteritems():
+                    try:
+                        print (key+': ',new_spark_def['properties'][key])
+                        if (key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and val not in spark_def:
+                            new_spark_def['properties'][key] += ' ' + val
+                        elif key != 'spark.driver.extraJavaOptions' and key != 'spark.executor.extraJavaOptions':
+                            new_spark_def['properties'][key] = val
+                    except:
+                        print (key+': ', 'None')
                         new_spark_def['properties'][key] = val
-                except:
-                    print (key+': ', 'None')
-                    new_spark_def['properties'][key] = val
-            write_json(spark_def_json, json.dumps(new_spark_def))
-            update_config(spark_def_ver, set_file=spark_def_json)
-        sleep(5)
+                write_json(spark_def_json, json.dumps(new_spark_def))
+                update_config(spark_def_ver, set_file=spark_def_json)
+            sleep(5)
+        except:
+            pass
 
     # hive-env
     if hive_env_content:
