@@ -25,6 +25,9 @@ Usage: `sudo python hdi_onpremises_setup.py` or `sudo python hdi_onpremises_setu
 3. Fill in all the configurations and compare with Ambari Configuration, update configuration if not exist/correct
 4. For uninstall, Unravel Configuration will be removed from Ambari Configuration
 
+v1.0.1
+* Add exception handler around install spark configs and uninstall spark configs (compatable with hadoop cluster)
+
 ### configs.py
 Put/Get Ambari Configuration
 For usage check:  https://cwiki.apache.org/confluence/display/AMBARI/Modify+configurations#Modifyconfigurations-Editconfigurationusingconfigs.py
