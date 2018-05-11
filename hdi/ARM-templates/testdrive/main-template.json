@@ -11,7 +11,7 @@
     },
     "clusterType": {
       "type": "string",
-      "defaultValue": "spark",
+      "defaultValue": "SPARK",
       "metadata": {
         "description": "The type of HDInsight cluster to create."
       }
