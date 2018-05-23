@@ -112,12 +112,13 @@ cat /usr/local/unravel/etc/unravel.properties |grep spark-events
 ## change permission on unravel daemon scripts
 chmod -R 755 /usr/local/unravel/init_scripts
 
-sleep 20
+sleep 30
 ## Starting unravel daemons
-/usr/local/unravel/init_scripts/unravel_all.sh stop
-sleep 10
-/usr/local/unravel/init_scripts/unravel_all.sh start
+/usr/local/unravel/init_scripts/unravel_all.sh stop > /tmp/unravel_stop_output 2>&1
+sleep 30
+/usr/local/unravel/init_scripts/unravel_all.sh start > /tmp/unravel_start_output 2>&1
 
+sleep 10
 ## Checking unravel daemons' status
 /usr/local/unravel/init_scripts/unravel_all.sh status
 
@@ -129,7 +130,7 @@ if [ "$KSTATUS" == "Running" ]; then
    echo "unravel_k is in running status"
 else
    echo "unravel_k is not in running status"
-   /usr/local/unravel/init_scripts/unravel_all.sh restart
+   /usr/local/unravel/init_scripts/unravel_all.sh restart > /tmp/unravel_restart_output 2>&1
 fi
 
 ## Completed the phase1 setup
