@@ -49,6 +49,8 @@ sudo -u unravel sh -c 'echo "1" > /srv/unravel/zk_1_data/myid'
 sudo -u unravel sh -c 'echo "2" > /srv/unravel/zk_2_data/myid'
 sudo -u unravel sh -c 'echo "3" > /srv/unravel/zk_3_data/myid'
 
+sudo -u unravel sh -c 'echo "export CDH_CPATH=/usr/local/unravel/dlib/hdp2.6.x/*" >> /usr/local/unravel/etc/unravel.ext.sh'
+
 # Create MySQL root password for unravel install
 cat /dev/urandom | tr -cd 'a-zA-Z0-9' | head -c10 > /usr/local/unravel/mysqlrootpass
 MYSQLROOTPASS=`cat /usr/local/unravel/mysqlrootpass`
