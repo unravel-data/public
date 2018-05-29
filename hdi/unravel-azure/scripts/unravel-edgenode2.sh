@@ -114,6 +114,11 @@ cat /usr/local/unravel/etc/unravel.properties |grep spark-events
 ## change permission on unravel daemon scripts
 chmod -R 755 /usr/local/unravel/init_scripts
 
+## Adding Tez configuration on unravel.properties
+echo "com.unraveldata.yarn.timeline-service.webapp.address=http://headnodehost" >> /usr/local/unravel/etc/unravel.properties
+echo "com.unraveldata.yarn.timeline-service.port=8188" >> /usr/local/unravel/etc/unravel.properties
+
+
 sleep 30
 ## Starting unravel daemons
 /usr/local/unravel/init_scripts/unravel_all.sh stop > /tmp/unravel_stop_output 2>&1
