@@ -10,7 +10,7 @@ apt-get install --assume-yes  wget
 
 wget https://unravelstorage01.blob.core.windows.net/unravel-app-blob-2018-04-13/unravel-package.tar.gz  -O /usr/local/unravel-package.tar.gz
 cd  /usr/local
-tar -zxvf unravel-tez-package.tar.gz
+tar -zxvf unravel-package.tar.gz
 
 ## prepare srv folder
 
