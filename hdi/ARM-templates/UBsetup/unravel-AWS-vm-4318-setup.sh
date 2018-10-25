@@ -103,6 +103,14 @@ echo "com.unraveldata.onprem=false" >> /usr/local/unravel/etc/unravel.properties
 echo "com.unraveldata.spark.live.pipeline.enabled=true" >> /usr/local/unravel/etc/unravel.properties
 echo "com.unraveldata.spark.appLoading.maxAttempts=10" >> /usr/local/unravel/etc/unravel.properties
 echo "com.unraveldata.spark.appLoading.delayForRetry=4000" >> /usr/local/unravel/etc/unravel.properties
+echo "com.unraveldata.onprem=false" >> /usr/local/unravel/etc/unravel.properties
+
+# Switch user 
+/user/sbin/useradd hdfs
+/user/sbin/groupadd hadoop
+/user/sbin/usermod -a -G hadoop hdfs
+/usr/local/unravel/install_bin/switch_to_user.sh hdfs hadoop
+
 
 # Starting Unravel daemons
 # uncomment below will start unravel daemon automatically but within unravel_all.sh start  will have exit status=1.
