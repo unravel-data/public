@@ -2990,7 +2990,7 @@ tez_site_configs = {
                     }
 
 def main():
-    sleep(30)
+    sleep(60)
     # print('Checking Ambari Operations')
     # while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED']):
     #     print('Operations Status:' + get_latest_req_stat())
