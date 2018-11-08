@@ -1,4 +1,4 @@
-# Download unravel 4.3.1.8 rpm
+# Download unravel 4.3.1.7 rpm
 curl https://preview.unraveldata.com/unravel/RPM/4.3.1/Azure/unravel-4.3.1.7b0027-1.x86_64.EMR.rpm -o unravel-4.3.1.7b0027-1.x86_64.EMR.rpm
 
 BLOBSTORACCT=${1}
@@ -47,6 +47,14 @@ DISKUUID=`/usr/sbin/blkid |grep ext4 |grep $DDISK  | awk '{ print $2}' |sed -e '
 echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
 
 /usr/bin/mount -a
+
+sleep 10
+
+mkdir -p /srv/local/unravel
+chmod -R 755 /srv/local
+
+ln -s /srv/local/unravel  /usr/local/unravel
+chmod -R 755 /usr/local/unravel
 
 # install unravel rpm
 /usr/bin/rpm  -U unravel-4.3.1.7b0027-1.x86_64.EMR.rpm
