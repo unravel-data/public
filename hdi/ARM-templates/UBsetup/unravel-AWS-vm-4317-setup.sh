@@ -60,7 +60,7 @@ chmod -R 755 /usr/local/unravel
 /usr/bin/rpm  -U unravel-4.3.1.7b0027-1.x86_64.EMR.rpm
 
 /usr/bin/sleep 5
-
+/usr/local/unravel/install_bin/await_fixups.sh
 
 # Update Unravel Lic Key into the unravel.properties file
 # Obtain a valid unravel Lic Key file ; the following is just non working one
