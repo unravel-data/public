@@ -1,0 +1,54 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "value": "centos"
+        },
+        "adminPassword": {
+            "value": "MyAdminPassword"
+        },
+        "vmName": {
+            "value": "myvmhostname"
+        },
+        "vmSize": {
+            "value": "Standard_E8s_v3"
+        },
+        "virtualNetworkName": {
+            "value": "MY_VNET"
+        },
+        "subnetName": {
+            "value": "MY_VSNET"
+        },
+        "fileUris": {
+            "value": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/ARM-templates/UBsetup/unravel-AWS-vm-4317-setup.sh"
+        },
+        "blobstoracct": {
+            "value": "my_storage_acount_name"
+        },
+        "blobpriackey": {
+            "value": "my_blob_storage_primary_key_string"
+        },
+        "blobsecackey": {
+            "value": "my_blob_storage_secondary_key_string"
+        },
+        "dlkstoreacct": {
+             "value": "my_data_lake_storage_account_name"
+        },
+        "dlkclientaid": {
+             "value": "my_data_lake_storage_client_id"
+        },
+        "dlkclientkey": {
+             "value": "my_data_lake_storage_client_key"
+        },
+        "dlkclitokept": {
+             "value": "https_path_for_data_lake_oauths"
+        },
+        "dlkcliropath": {
+             "value": "/clusters/CLUSTERNAME"
+        },
+        "commandToExecute": {
+            "value": "sh unravel-AWS-vm-4317-setup.sh"
+        }
+    }
+}

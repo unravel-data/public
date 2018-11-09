@@ -64,7 +64,7 @@ chmod -R 755 /usr/local/unravel
 
 # Update Unravel Lic Key into the unravel.properties file
 # Obtain a valid unravel Lic Key file ; the following is just non working one
-echo "com.unraveldata.lic=1p6ed4s492012j5rb242rq3x3w702z1l455g501z2z4o2o4lo675555u3h" >> /usr/local/unravel/etc/unravel.properties
+echo "com.unraveldata.lic=unravel_license_string" >> /usr/local/unravel/etc/unravel.properties
 echo "export CDH_CPATH="/usr/local/unravel/dlib/hdp2.6.x/*"" >> /usr/local/unravel/etc/unravel.ext.sh
 
 # Update Azure blob storage account credential in unravel.properties file
