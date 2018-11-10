@@ -17,7 +17,7 @@
     },
     "scriptActionUri2": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/adrian-unraveldata/azurecfg/master/cfg/unravel_hdi_bootstrap.sh",
+      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/hdinsight-unravel-spark-script-action/unravel_hdi_spark_bootstrap_3.0.sh",
       "metadata": {
         "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
       }
