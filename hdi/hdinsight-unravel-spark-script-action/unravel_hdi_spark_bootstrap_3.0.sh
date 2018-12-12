@@ -3028,7 +3028,7 @@ unravel_version = get_unravel_ver()
 print('Unravel Version: {0}'.format(unravel_version))
 if int(''.join(unravel_version.split('.')[:3])) >= 450:
     hive_site_configs['hive.exec.pre.hooks'] = 'com.unraveldata.dataflow.hive.hook.UnravelHiveHook'
-    hive_site_configs['hive.exec.run.hooks'] = 'com.unraveldata.dataflow.hive.hook.UnravelHiveHook'
+    hive_site_configs['hive.exec.driver.run.hooks'] = 'com.unraveldata.dataflow.hive.hook.UnravelHiveHook'
     hive_site_configs['hive.exec.post.hooks'] = 'com.unraveldata.dataflow.hive.hook.UnravelHiveHook'
     hive_site_configs['hive.exec.failure.hooks'] = 'com.unraveldata.dataflow.hive.hook.UnravelHiveHook'
 
