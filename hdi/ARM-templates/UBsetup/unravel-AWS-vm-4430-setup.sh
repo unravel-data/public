@@ -1,5 +1,5 @@
 # Download unravel 4.4.3.0 rpm
-curl https://preview.unraveldata.com/unravel/RPM/4.4.3/unravel-4.4.3.0b0005-1.x86_64.EMR.rpm -o unravel-4.4.3.0b0005-1.x86_64.EMR.rpm
+curl -v -u  Unravel-4430:YzWY2mxzur https://preview.unraveldata.com/unravel/RPM/4.4.3/unravel-4.4.3.0b0005-1.x86_64.EMR.rpm -o unravel-4.4.3.0b0005-1.x86_64.EMR.rpm
 
 BLOBSTORACCT=${1}
 BLOBPRIACKEY=${2}
