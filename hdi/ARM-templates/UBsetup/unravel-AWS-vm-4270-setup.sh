@@ -1,5 +1,5 @@
 # Download unravel 4.2.7 rpm
-curl -v -u unravel-42:CluB6bfXpi https://preview.unraveldata.com/unravel/RPM/4.2.7/Azure/unravel-4.2.7-Azure-latest.rpm -o unravel-4.2.7-Azure-latest.rpm
+curl -k -v -u unravel-42:CluB6bfXpi https://preview.unraveldata.com/unravel/RPM/4.2.7/Azure/unravel-4.2.7-Azure-latest.rpm -o unravel-4.2.7-Azure-latest.rpm
 #/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1073.x86_64.EMR.rpm
 
 BLOBSTORACCT=${1}
