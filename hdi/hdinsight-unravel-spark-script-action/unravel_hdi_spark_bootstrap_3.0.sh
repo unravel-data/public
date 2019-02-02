@@ -909,6 +909,9 @@ function es_install() {
 
   if [ $RC -eq 0 ]; then
       echo "Unravel MR Sensor (unravel_es) is installed and running" | tee -a  $OUT_FILE
+      sudo sed -i '20imkdir -p /tmp/unravel' /etc/init.d/unravel_es
+      sudo sed -i '21ichmod 777 /tmp/unravel' /etc/init.d/unravel_es
+      sudo systemctl daemon-reload
       return $(es_postinstall_check)
   else
       echo "ERROR: Unravel MR Sensor (unravel_es) start failed" | tee -a  $OUT_FILE
