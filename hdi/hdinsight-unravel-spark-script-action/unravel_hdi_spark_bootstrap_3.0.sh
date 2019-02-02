@@ -852,7 +852,7 @@ function es_install() {
 
   if es_already_installed; then
     echo "Unravel MR Sensor (unravel_es) already installed" | tee -a ${OUT_FILE}
-    return 0
+#    return 0
   fi
 
   # sudo yum install -y wget
@@ -903,7 +903,7 @@ function es_install() {
   RC=$?
 
   if [ $RC -eq 0 ]; then
-    sudo service unravel_es start
+    sudo service unravel_es restart
   fi
   RC=$?
 
