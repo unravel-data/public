@@ -487,7 +487,15 @@ debug_dump
 # do not make this script errors abort the whole bootstrap
 allow_errors
 
-ARGS="-y --unravel-server $1"
+ARGS="-y $*"
+echo $ARGS | grep -q '\--unravel-server'
+HAS_FLAG=$?
+if [ $HAS_FLAG -eq 0 ]; then
+ true
+elif [[ $* =~ .*?:[0-9]+ ]]; then
+ ARGS="-y --unravel-server $*"
+fi
+
 [ ! -z "$HIVE_VER_XYZ" ] && ARGS+=" --hive-version $HIVE_VER_XYZ"
 [ ! -z "$SPARK_VER_XYZ" ] && ARGS+=" --spark-version $SPARK_VER_XYZ"
 
