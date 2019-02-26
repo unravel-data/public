@@ -1660,6 +1660,10 @@ function install() {
                 done
                 shift
                 ;;
+            --uninstall)
+                export UNINSTALL=True
+                shift
+                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
@@ -2723,10 +2727,9 @@ if __name__ == \"__main__\":
 
 function final_check(){
     echo "Running final_check.py in the background"
-    echo "\
+    cat <<EOF > /tmp/unravel/final_check.py
 #!/usr/bin/env python
-#v1.1.3
-import re
+#v1.1.4
 import urllib2
 from subprocess import call, check_output
 import json, argparse, re, base64
@@ -2742,6 +2745,7 @@ parser.add_argument('-c', '--cluster_name', help='ambari cluster name')
 parser.add_argument('-s', '--spark_ver', help='spark version')
 parser.add_argument('-hive', '--hive_ver', help='hive version', required=True)
 parser.add_argument('-l', '--am_host', help='ambari host', required=True)
+parser.add_argument('--uninstall', '-uninstall', help='remove unravel configurations from ambari', action='store_true')
 argv = parser.parse_args()
 argv.username = Constants.AMBARI_WATCHDOG_USERNAME
 base64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password
@@ -2761,16 +2765,17 @@ tez_site_json = log_dir + 'tez-site.json'
 
 def am_req(api_name=None, full_api=None):
     if api_name:
-        result = json.loads(check_output('curl -u {0}:\'{1}\' -s -H \'X-RequestedBy:ambari\' -X GET http://{2}:8080/api/v1/clusters/{3}/{4}'.format(argv.username, argv.password, argv.am_host, argv.cluster_name, api_name), shell=True))
+        result = json.loads(check_output("curl -u {0}:\'{1}\' -s -H \'X-RequestedBy:ambari\' -X GET http://{2}:8080/api/v1/clusters/{3}/{4}".format(argv.username, argv.password, argv.am_host, argv.cluster_name, api_name), shell=True))
     elif full_api:
-        result = json.loads(check_output('curl -u {0}:\'{1}\' -s -H \'X-RequestedBy:ambari\' -X GET {2}'.format(argv.username, argv.password,full_api), shell=True))
+        result = json.loads(check_output("curl -u {0}:\'{1}\' -s -H \'X-RequestedBy:ambari\' -X GET {2}".format(argv.username, argv.password,full_api), shell=True))
     return result
 
 #####################################################################
 #    Check current configuration and update if not correct          #
 #           Give None value if need to skip configuration           #
 #####################################################################
-def check_configs(hdfs_url=None,hive_env_content=None,hadoop_env_content=None,hive_site_configs=None,spark_defaults_configs=None,mapred_site_configs=None,tez_site_configs=None):
+def check_configs(hdfs_url=None, hive_env_content=None, hadoop_env_content=None, hive_site_configs=None,
+                  spark_defaults_configs=None, mapred_site_configs=None, tez_site_configs=None, uninstall=False):
     print('HDFS_URL: ')
     print(hdfs_url)
     print('Hive-env: ')
@@ -2786,65 +2791,79 @@ def check_configs(hdfs_url=None,hive_env_content=None,hadoop_env_content=None,hi
 
     # spark-default
     if spark_defaults_configs:
-        check_spark_default_configs()
+        check_spark_default_configs(uninstall=uninstall)
 
     # hive-env
     if hive_env_content:
-        check_hive_env_content()
+        check_hive_env_content(uninstall=uninstall)
 
     # hive-site
     if hive_site_configs:
-        check_hive_site_configs()
+        check_hive_site_configs(uninstall=uninstall)
 
     # hadoop-env
     if hadoop_env_content:
-        check_haddop_env_content()
+        check_haddop_env_content(uninstall=uninstall)
 
     # mapred-site
     if mapred_site_configs:
-        check_mapred_site_configs()
+        check_mapred_site_configs(uninstall=uninstall)
 
     #tez-site
     if tez_site_configs:
-        check_tez_site_configs()
+        check_tez_site_configs(uninstall=uninstall)
 
-def check_haddop_env_content():
+def check_haddop_env_content(uninstall=False):
     get_config('hadoop-env', set_file=hadoop_env_json)
     hadoop_env = read_json(hadoop_env_json)
+    found_prop = hadoop_env.find(hadoop_env_content.split(' ')[1])
 
-    if hadoop_env.find(hadoop_env_content.split(' ')[1]) > -1:
-        print('\nHADOOP_CLASSPATH is correct\n')
+    if found_prop > -1 and not uninstall:
+        print('\nUnravel HADOOP_CLASSPATH is correct\n')
     else:
         hadoop_env = json.loads(hadoop_env)
-        print('\nHADOOP_CLASSPATH is missing, updating\n')
-
-        content = hadoop_env['properties']['content']
-
-        print('Haddop-env content: ', content)
-        hadoop_env['properties']['content'] = content + '\n' + hadoop_env_content
-        sleep(2)
+        if found_prop > -1 and uninstall:
+        # Remove unravel hive hook path
+            print('\nUnravel HADOOP_CLASSPATH found, removing\n')
+            hadoop_env_regex = hadoop_env_content.replace("\$", "\\$")
+            new_prop = remove_propery(prop_val=hadoop_env['properties']['content'], prop_regex=hadoop_env_regex)
+            hadoop_env['properties']['content'] = new_prop
+        elif uninstall:
+            pass
+        elif not found_prop > -1:
+            print('\nUnravel HADOOP_CLASSPATH is missing, updating\n')
+            content = hadoop_env['properties']['content']
+            print('Haddop-env content: ', content)
+            hadoop_env['properties']['content'] = content + '\n' + hadoop_env_content
         write_json(hadoop_env_json, json.dumps(hadoop_env))
         update_config('hadoop-env', set_file=hadoop_env_json)
     sleep(5)
 
-def check_hive_env_content():
+def check_hive_env_content(uninstall=False):
     get_config('hive-env', set_file=hive_env_json)
     hive_env = read_json(hive_env_json)
-    if hive_env_content.split(' ')[1] in hive_env:
-        print('\nAUX_CLASSPATH is in hive\n')
+    found_prop = hive_env_content.split(' ')[1] in hive_env
+    if found_prop and not uninstall:
+        print('\nUnravel AUX_CLASSPATH is in hive\n')
     else:
-        print('\n\nAUX_CLASSPATH is missing\n')
         hive_env = json.loads(hive_env)
-        content = hive_env['properties']['content']
-        # content = hive_env[hive_env.find('\"content\": \"')+12:re.search('{% endif %}(\s*?\n*?.*?){0,}\",', hive_env).span()[1]-2]
-        print('hive-env content: ', content)
-        hive_env['properties']['content'] = content + '\n' + hive_env_content
-        sleep(2)
+        if found_prop and uninstall:
+                print('\nUnravel HADOOP_CLASSPATH found, removing\n')
+                hive_env_regex = hive_env_content.replace('\$', '\\$')
+                new_prop = remove_propery(prop_val=hive_env['properties']['content'], prop_regex=hive_env_regex)
+                hive_env['properties']['content'] = new_prop
+        elif uninstall:
+            pass
+        elif not found_prop:
+            print('\n\nUnravel AUX_CLASSPATH is missing\n')
+            content = hive_env['properties']['content']
+            print('hive-env content: ', content)
+            hive_env['properties']['content'] = content + '\n' + hive_env_content
         write_json(hive_env_json, json.dumps(hive_env))
         update_config('hive-env', set_file=hive_env_json)
         sleep(5)
 
-def check_hive_site_configs():
+def check_hive_site_configs(uninstall=False):
     get_config('hive-site', set_file=hive_site_json)
     hive_site = read_json(hive_site_json)
 
@@ -2853,29 +2872,36 @@ def check_hive_site_configs():
     except Exception as e:
         print(e)
         check_hive_site = False
-    if check_hive_site:
-        print('\nCustom hive-site configs are correct\n')
+    if check_hive_site and not uninstall:
+        print('\nUnravel Custom hive-site configs correct\n')
     else:
-        print('\n\nCustom hive-site configs are missing\n')
         hive_site = json.loads(hive_site)
-        for key, val in hive_site_configs.iteritems():
-            try:
-                print(key + ': ', hive_site['properties'][key])
-                if re.match('hive.exec.(pre|post|failure).hooks', key) and val not in hive_site['properties'][key]:
-                    hive_site['properties'][key] += ',' + val
-                elif re.match('hive.exec.(pre|post|failure).hooks', key):
-                    pass
-                else:
-                    hive_site['properties'][key] = val
-            except:
-                print (key + ': ', 'None')
-                hive_site['properties'][key] = val
+        if uninstall:
+            for key, val in hive_site_configs.iteritems():
+                if hive_site['properties'].get(key, None) and val in hive_site['properties'][key]:
+                    print('\nUnravel Custom hive-site config {0} found, removing\n'.format(key))
+                    hive_site['properties'][key] = remove_propery(prop_val=hive_site['properties'][key],
+                                                                  prop_regex=',?' + val)
+        elif not check_hive_site:
+            print('\n\nUnravel Custom hive-site configs are missing\n')
 
+            for key, val in hive_site_configs.iteritems():
+                try:
+                    print(key + ': ', hive_site['properties'][key])
+                    if re.match('hive.exec.(pre|post|failure).hooks', key) and val not in hive_site['properties'][key]:
+                        hive_site['properties'][key] += ',' + val
+                    elif re.match('hive.exec.(pre|post|failure).hooks', key):
+                        pass
+                    else:
+                        hive_site['properties'][key] = val
+                except:
+                    print (key + ': ', 'None')
+                    hive_site['properties'][key] = val
         write_json(hive_site_json, json.dumps(hive_site))
         update_config('hive-site', set_file=hive_site_json)
     sleep(5)
 
-def check_mapred_site_configs():
+def check_mapred_site_configs(uninstall=False):
     get_config('mapred-site', set_file=mapred_site_json)
     mapred_site = json.loads(read_json(mapred_site_json))
 
@@ -2884,69 +2910,92 @@ def check_mapred_site_configs():
     except Exception as e:
         print(e)
         check_mapr_site = False
-    if check_mapr_site:
-        print('\nmapred-site correct')
+    if check_mapr_site and not uninstall:
+        print('\nUnravel mapred-site configs correct')
     else:
-        for key, val in mapred_site_configs.iteritems():
-            prop_regex = '-javaagent:.*/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport=.*:[0-9]{1,5}'
-            try:
-                print(key + ': ', mapred_site['properties'][key])
-                if re.search(prop_regex, mapred_site['properties'][key]):
-                    print('\n\nmapr-site is incorrect updating property')
-                    mapred_site['properties'][key] = re.sub(prop_regex, val, mapred_site['properties'][key])
-                elif val not in mapred_site['properties'][key]:
-                    print('\n\nmapr-site missing adding property')
-                    mapred_site['properties'][key] += ' ' + val
-            except:
-                print (key + ': ', 'None')
-                mapred_site['properties'][key] = val
+        prop_regex = '-javaagent:.*/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport=.*:[0-9]{1,5}'
+        if uninstall:
+            for key, val in mapred_site_configs.iteritems():
+                if mapred_site['properties'].get(key, None) and val in mapred_site['properties'][key]:
+                    print('\n\nmapred-site config {0} found, removing'.format(key))
+                    mapred_site['properties'][key] = remove_propery(prop_val=mapred_site['properties'][key],
+                                                                    prop_regex='\s?' + val)
+        elif not check_mapr_site:
+            for key, val in mapred_site_configs.iteritems():
+                try:
+                    print(key + ': ', mapred_site['properties'][key])
+                    if re.search(prop_regex, mapred_site['properties'][key]):
+                        print('\n\nUnravel mapred-site config incorrect updating property {0}'.format(key))
+                        mapred_site['properties'][key] = re.sub(prop_regex, val, mapred_site['properties'][key])
+                    elif val not in mapred_site['properties'][key]:
+                        print('\n\nadding property in mapred-site {0}'.format(key))
+                        mapred_site['properties'][key] += ' ' + val
+                except:
+                    print(key + ': ', 'None')
+                    mapred_site['properties'][key] = val
         write_json(mapred_site_json, json.dumps(mapred_site))
         update_config('mapred-site', set_file=mapred_site_json)
     sleep(5)
 
-def check_spark_default_configs():
+def check_spark_default_configs(uninstall=False):
     try:
         spark_def_ver = get_spark_defaults()
         spark_def = read_json(spark_def_json)
-
-        if all(x in spark_def for _, x in spark_defaults_configs.iteritems()):
+        check_spark_config = all(x in spark_def for _, x in spark_defaults_configs.iteritems())
+        if check_spark_config and not uninstall:
             print(get_spark_defaults() + '\n\nSpark Config is correct\n')
         else:
-            print('\n\nSpark Config is not correct\n')
             new_spark_def = json.loads(spark_def)
-            for key, val in spark_defaults_configs.iteritems():
-                try:
-                    print ('{0}: {1}'.format(key, new_spark_def['properties'][key]))
-                    if (
-                            key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and val not in spark_def:
-                        new_spark_def['properties'][key] += ' ' + val
-                    elif key != 'spark.driver.extraJavaOptions' and key != 'spark.executor.extraJavaOptions':
+            if uninstall:
+                for key, val in spark_defaults_configs.iteritems():
+                    if new_spark_def['properties'].get(key, None) \
+                            and key not in ['spark.eventLog.dir', 'spark.history.fs.logDirectory'] \
+                            and val in new_spark_def['properties'][key]:
+                        print('\n\nUnravel Spark Config {0} found, removing\n'.format(key))
+                        new_spark_def['properties'][key] = remove_propery(prop_val=new_spark_def['properties'][key],
+                                                                          prop_regex='\s?' + val)
+            elif not check_spark_config:
+                print('\n\nUnravel Spark Configs incorrect\n')
+                for key, val in spark_defaults_configs.iteritems():
+                    try:
+                        print ('{0}: {1}'.format(key, new_spark_def['properties'][key]))
+                        if (key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and val not in spark_def:
+                            new_spark_def['properties'][key] += ' ' + val
+                        elif key != 'spark.driver.extraJavaOptions' and key != 'spark.executor.extraJavaOptions':
+                            new_spark_def['properties'][key] = val
+                    except:
+                        print (key + ': ', 'None')
                         new_spark_def['properties'][key] = val
-                except:
-                    print (key + ': ', 'None')
-                    new_spark_def['properties'][key] = val
             write_json(spark_def_json, json.dumps(new_spark_def))
             update_config(spark_def_ver, set_file=spark_def_json)
         sleep(5)
     except:
         pass
 
-def check_tez_site_configs():
+def check_tez_site_configs(uninstall=False):
     get_config('tez-site', set_file=tez_site_json)
     tez_site = json.loads(read_json(tez_site_json))
     make_change = False
     for key, val in tez_site_configs.iteritems():
-        prop_regex = '-javaagent:.*/jars/btrace-agent.jar=libs=mr,config=tez -Dunravel.server.hostport=.*:[0-9]{1,5}'
-        if val in tez_site['properties'][key]:
-            print(key + ' is correct')
-        elif re.search(prop_regex, tez_site['properties'][key]):
-            print(key + ' is not correct updating unravel tez properties')
-            tez_site['properties'][key] = re.sub(prop_regex, val, tez_site['properties'][key])
+        if uninstall and val in val in tez_site['properties'][key]:
+            print('Unravel TEZ config {0} found, removing'.format(key))
+            tez_site['properties'][key] = remove_propery(prop_val=tez_site['properties'][key],
+                           prop_regex='\s?' + val)
             make_change = True
+        elif uninstall:
+            pass
         else:
-            print(key + ' is missing add unravel tez properties')
-            tez_site['properties'][key] += ' ' + val
-            make_change = True
+            prop_regex = '-javaagent:.*/jars/btrace-agent.jar=libs=mr,config=tez -Dunravel.server.hostport=.*:[0-9]{1,5}'
+            if val in tez_site['properties'][key]:
+                print(key + ' is correct')
+            elif re.search(prop_regex, tez_site['properties'][key]):
+                print(key + ' is not correct updating unravel tez properties')
+                tez_site['properties'][key] = re.sub(prop_regex, val, tez_site['properties'][key])
+                make_change = True
+            else:
+                print(key + ' is missing add unravel tez properties')
+                tez_site['properties'][key] += ' ' + val
+                make_change = True
     if make_change:
         write_json(tez_site_json, json.dumps(tez_site))
         update_config('tez-site', set_file=tez_site_json)
@@ -2963,16 +3012,16 @@ def get_latest_req_context():
 
 def get_config(config_name, set_file=None):
     if set_file:
-        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4} -f {5}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
+        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4} -f {5} 2>/dev/null'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name, set_file), shell=True)
     else:
-        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name), shell=True)
+        return check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c {4} 2>/dev/null'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, config_name), shell=True)
 
 def get_spark_defaults():
     try:
-        spark_defaults =check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
+        spark_defaults = check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark-defaults -f {4} 2>/dev/null'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
         return ('spark-defaults')
     except:
-        spark_defaults = check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark2-defaults -f {4}'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
+        spark_defaults = check_output('python /tmp/unravel/configs.py -l {0} -u {1} -p \'{2}\' -n {3} -a get -c spark2-defaults -f {4} 2>/dev/null'.format(argv.am_host, argv.username, argv.password, argv.cluster_name, spark_def_json), shell=True)
         return ('spark2-defaults')
 
 def get_unravel_ver():
@@ -2998,7 +3047,15 @@ def read_json(json_file_location):
     return result
 
 def restart_services():
-    call('curl -u {0}:\'{1}\' -i -H \'X-Requested-By: ambari\' -X POST -d \'{{\"RequestInfo\": {{\"command\":\"RESTART\",\"context\" :\"Unravel request: Restart Services\",\"operation_level\":\"host_component\"}},\"Requests/resource_filters\":[{{\"hosts_predicate\":\"HostRoles/stale_configs=true\"}}]}}\' http://{2}:8080/api/v1/clusters/{3}/requests > /tmp/Restart.out 2> /tmp/Restart.err < /dev/null &'.format(argv.username, argv.password, argv.am_host, argv.cluster_name),shell=True)
+    print("Restarting services")
+    call('curl -u {0}:\'{1}\' -i -H \'X-Requested-By: ambari\' -X POST -d \'{{"RequestInfo": {{"command":"RESTART","context" :"Unravel request: Restart Services","operation_level":"host_component"}},"Requests/resource_filters":[{{"hosts_predicate":"HostRoles/stale_configs=true"}}]}}\' http://{2}:8080/api/v1/clusters/{3}/requests > /tmp/Restart.out 2> /tmp/Restart.err < /dev/null &'.format(argv.username, argv.password, argv.am_host, argv.cluster_name),shell=True)
+
+def remove_propery(prop_val, prop_regex):
+    """
+    :type prop_type: json or string
+    :return: New Properties after removal
+    """
+    return re.sub(prop_regex, '', prop_val)
 
 def update_config(config_name,config_key=None,config_value=None, set_file=None):
     try:
@@ -3053,7 +3110,8 @@ tez_site_configs = {
 def main():
     sleep(35)
     print('Checking Ambari Operations')
-    while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED'] and get_latest_req_context() != 'run_customscriptaction'):
+    while(get_latest_req_stat() not in ['COMPLETED','FAILED','ABORTED']
+          and get_latest_req_context() != 'run_customscriptaction'):
         print('Operations Status:' + get_latest_req_stat())
         sleep(60)
     print('All Operations are completed, Comparing configs')
@@ -3065,7 +3123,8 @@ def main():
                   hive_site_configs=hive_site_configs,
                   spark_defaults_configs=spark_defaults_configs,
                   mapred_site_configs=mapred_site_configs,
-                  tez_site_configs=tez_site_configs
+                  tez_site_configs=tez_site_configs,
+                  uninstall=argv.uninstall
                  )
 
     restart_services()
@@ -3073,8 +3132,16 @@ def main():
 if __name__ == '__main__':
     main()
 
-" > /tmp/unravel/final_check.py
-    ( sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} )
+EOF
+
+    if [ "$UNINSTALL" == True ]; then
+        sudo python /tmp/unravel/final_check.py --uninstall -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ}
+        if [ -e /etc/init.d/unravel_es ]; then
+            /etc/init.d/unravel_es stop
+        fi
+    else
+        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ}
+    fi
 }
 
 # dump the contents of env variables and shell settings
