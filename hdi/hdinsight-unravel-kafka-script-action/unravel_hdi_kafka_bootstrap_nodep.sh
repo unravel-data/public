@@ -1,7 +1,7 @@
 #! /bin/bash
 
 ################################################################################################
-# Unravel for HDInsight Bootstrap Script                                                       #
+# Unravel 4.3, 4.4, and 4.5 for HDInsight Bootstrap Script                                     #
 #                                                                                              #
 # The bootstrap script log is located at /media/ephemeral0/logs/others/node_bootstrap.log      #
 ################################################################################################
@@ -476,8 +476,7 @@ PLATFORM="HDI"
 
 echo "AMBARI_PORT before: ${AMBARI_PORT}"
 
-HEADIP=`ping -c1 headnodehost |grep PING |awk '{print $3}' |tr -d '()'`
-
+HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
 [ -z "$AMBARI_HOST" ] && export AMBARI_HOST=$HEADIP
 [ -z "$AMBARI_PORT" ] && export AMBARI_PORT=8080
 
