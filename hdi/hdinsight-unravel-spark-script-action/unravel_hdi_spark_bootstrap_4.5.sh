@@ -3167,7 +3167,15 @@ if __name__ == '__main__':
     main()
 
 EOF
-    ( sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} )
+   # Remove Unravel Properties from Ambari
+   if [ "$UNINSTALL" == True ]; then
+        sudo python /tmp/unravel/final_check.py --uninstall -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ}
+        if [ -e /etc/init.d/unravel_es ]; then
+            /etc/init.d/unravel_es stop
+        fi
+    else
+        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ}
+    fi
 }
 
 # dump the contents of env variables and shell settings
