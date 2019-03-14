@@ -47,7 +47,8 @@ fi
 # Install unravel 4.4.3.0
 # The rpm install output will shown in console and log file in /tmp/unravel_${UVERSION}_install_${DATE}.log
 
-sudo rpm -Uvh /tmp/unravel-4.4.3.0-EMR-latest.rpm 2>&1 | tee  /tmp/unravel_${UVERSION}_install_${DATE}.log
+#sudo rpm -Uvh /tmp/unravel-4.4.3.0-EMR-latest.rpm 2>&1 | tee  /tmp/unravel_${UVERSION}_install_${DATE}.log
+sudo rpm -Uvh /tmp/unravel-4.4.3.0-EMR-latest.rpm 
 sleep 10
 /usr/local/unravel/install_bin/await_fixups.sh
 
