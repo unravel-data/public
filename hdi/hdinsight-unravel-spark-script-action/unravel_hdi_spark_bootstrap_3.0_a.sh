@@ -1,18 +1,12 @@
 #! /bin/bash
 
 ################################################################################################
-# Unravel for HDInsight Bootstrap Script                                                       #
+# Unravel 4.4 for HDInsight Bootstrap Script                                                   #
 #                                                                                              #
 # The bootstrap script log is located at /media/ephemeral0/logs/others/node_bootstrap.log      #
 ################################################################################################
 
 [ ! -z "$VERBOSE" ] && set -x
-
-
-
-
-
-
 
 # Unravel Integration - common functionality
 
@@ -1709,11 +1703,12 @@ function install() {
 PLATFORM="HDI"
 
 echo "AMBARI_PORT before: ${AMBARI_PORT}"
-
-[ -z "$AMBARI_HOST" ] && export AMBARI_HOST=headnodehost
 [ -z "$AMBARI_PORT" ] && export AMBARI_PORT=8080
-
 echo "AMBARI_PORT after: ${AMBARI_PORT}"
+
+HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
+[ -z "$AMBARI_HOST" ] && export AMBARI_HOST=$HEADIP
+echo "AMBARI_HOST: ${AMBARI_HOST}"
 
 AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 

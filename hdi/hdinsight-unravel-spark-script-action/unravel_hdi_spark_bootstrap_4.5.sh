@@ -1,18 +1,12 @@
 #! /bin/bash
 
 ################################################################################################
-# Unravel for HDInsight Bootstrap Script                                                       #
+# Unravel 4.5 for HDInsight Bootstrap Script                                                   #                                                     #
 #                                                                                              #
 # The bootstrap script log is located at /media/ephemeral0/logs/others/node_bootstrap.log      #
 ################################################################################################
 
 [ ! -z "$VERBOSE" ] && set -x
-
-
-
-
-
-
 
 # Unravel Integration - common functionality
 
@@ -695,6 +689,8 @@ function stop {
     echo "Stopping \$DAEMON_NAME... PID: \$pid"
     kill \$pid
     sleep 1
+    # Search for any process that launched the shell script or the jar.
+    # So keep this backward compatible with Unravel 4.4 version.
     PIDS=\$(ps -U ${UNRAVEL_ES_USER} -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep | awk '{ print \$2 }' )
     [ "\$PIDS" ] && kill \$PIDS
     for i in {1..10}
@@ -770,59 +766,6 @@ unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`:
 EOF
 }
 
-function gen_sensor_script() {
-    sudo /bin/mkdir -p /usr/local/unravel_es
-    sudo /bin/rm ${TMP_DIR}/u_es 2>/dev/null
-
-    isFunction resolve_cluster_id && resolve_cluster_id
-
-    [ ! -z "$CLUSTER_ID" ] && CLUSTER_ID_ARG="--cluster-id $CLUSTER_ID"
-    [ ! -z "$UNRAVEL_ES_CHUNK" ] && CHUNK_ARG="--chunk-size $UNRAVEL_ES_CHUNK"
-
-    cat <<EOF >"${TMP_DIR}/u_es"
-#!/bin/bash
-
-UNRAVEL_HOST=$UNRAVEL_HOST
-IDENT=unravel_es
-cd /usr/local/unravel_es
-# this script (process) will stick around as a nanny
-FLAP_COUNT=0
-MINIMUM_RUN_SEC=5
-while true ; do
-  # nanny loop
-  START_AT=\$(date +%s)
-  java -server -Xmx2g -Xms2g -cp /usr/local/\${IDENT}/lib/* -jar /usr/local/\${IDENT}/unravel-emr-sensor.jar $ES_CLUSTER_TYPE_SWITCH $CLUSTER_ID_ARG $CHUNK_ARG --unravel-server \$UNRAVEL_HOST $* > \${IDENT}.out  2>&1
-
-  CHILD_PID=\$!
-  # if this script gets INT or TERM, then clean up child process and exit
-  trap 'kill $CHILD_PID; exit 5' SIGINT SIGTERM
-  # wait for child
-  wait \$CHILD_PID
-  CHILD_RC=\$?
-  FINISH_AT=\$(date +%s)
-  RUN_SECS=\$((\$FINISH_AT-\$START_AT))
-  echo "\$(date '+%Y%m%dT%H%M%S') \${IDENT} died after \${RUN_SECS} seconds" >> \${IDENT}.out
-  if [ \$CHILD_RC -eq 71 ]; then
-      echo "\$(date '+%Y%m%dT%H%M%S') \${IDENT} retcode is 71, indicating no restart required" >>\$UNRAVEL_LOG_DIR/\${IDENT}.out
-      exit 71
-    fi
-    if [ \$RUN_SECS -lt \$MINIMUM_RUN_SEC ]; then
-      FLAP_COUNT=\$((\$FLAP_COUNT+1))
-      if [ \$FLAP_COUNT -gt 10 ]; then
-        echo "\$(date '+%Y%m%dT%H%M%S') \${IDENT} died too fast, NOT restarting to avoid flapping" >>\${IDENT}.out
-        exit 6
-      fi
-  else
-      FLAP_COUNT=0
-  fi
-  sleep 10
-done
-EOF
-    sudo /bin/mv ${TMP_DIR}/u_es /usr/local/unravel_es/unravel_emr_sensor.sh
-    sudo chmod +x /usr/local/unravel_es/*.sh
-    sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} /usr/local/unravel_es
-}
-
 ###############################################################################################
 # Checks whether the Unravel MR sensor (unravel_es) has already been installed                #
 ###############################################################################################
@@ -853,10 +796,7 @@ function es_install() {
 
   if es_already_installed; then
     echo "Unravel MR Sensor (unravel_es) already installed" | tee -a ${OUT_FILE}
-#    return 0
   fi
-
-  # sudo yum install -y wget
 
   sudo /bin/mkdir -p /usr/local/unravel_es/lib
   if [ "$ENABLE_GPL_LZO" == "yes" ] || [ "$ENABLE_GPL_LZO" == "true" ]; then
@@ -876,9 +816,10 @@ function es_install() {
 
   # generate /etc/init.d/unravel_es
   get_sensor_initd
-  # generate /usr/local/unravel_emr_sensor.sh
-  # gen_sensor_script
-  # generate /usr/local/unravel_es/unravel_es.properties
+  # Note that /usr/local/unravel_es/dbin/unravel_emr_sensor.sh is now
+  # packaged by the RPM and unzipped.
+  # Generate /usr/local/unravel_es/etc/unravel_es.properties. We will ignore the
+  # template (unravel_es.properties.template) that ships with the RPM.
   gen_sensor_properties
 
   UES_JAR_NAME="unravel-emrsensor-pack.zip"
@@ -1714,11 +1655,12 @@ function install() {
 PLATFORM="HDI"
 
 echo "AMBARI_PORT before: ${AMBARI_PORT}"
-
-[ -z "$AMBARI_HOST" ] && export AMBARI_HOST=headnodehost
 [ -z "$AMBARI_PORT" ] && export AMBARI_PORT=8080
-
 echo "AMBARI_PORT after: ${AMBARI_PORT}"
+
+HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
+[ -z "$AMBARI_HOST" ] && export AMBARI_HOST=$HEADIP
+echo "AMBARI_HOST: ${AMBARI_HOST}"
 
 AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 

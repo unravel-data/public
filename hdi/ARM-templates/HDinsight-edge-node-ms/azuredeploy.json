@@ -52,7 +52,7 @@
                 },
                 { "name": "[concat('emptynode','-' ,variables('applicationName2'))]",
                   "uri": "[parameters('scriptActionUri2')]",
-                  "parameters": "--unravel-server 10.10.1.4:3000 --spark-version 2.1.0",
+                  "parameters": "unravel-server 10.10.1.4:3000 spark-version 2.3.0",
                   "roles": ["edgenode"]
             }],
             "uninstallScriptActions": [],

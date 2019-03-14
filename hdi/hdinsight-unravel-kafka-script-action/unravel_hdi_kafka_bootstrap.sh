@@ -1,7 +1,7 @@
 #! /bin/bash
 
 ################################################################################################
-# Unravel for HDInsight Bootstrap Script                                                       #
+# Unravel 4.3, 4.4, and 4.5 for HDInsight Bootstrap Script                                     #
 #                                                                                              #
 # The bootstrap script log is located at /media/ephemeral0/logs/others/node_bootstrap.log      #
 ################################################################################################
@@ -278,13 +278,13 @@ function install() {
                 install_usage
                 exit 0
                 ;;
-            --unravel-server )
+            "unravel-server" | "--unravel-server" )
                 UNRAVEL_SERVER=$1
                 [[ $UNRAVEL_SERVER != *":"* ]] && UNRAVEL_SERVER=${UNRAVEL_SERVER}:3000
                 export UNRAVEL_SERVER
                 shift
                 ;;
-            --unravel-receiver )
+            "unravel-receiver" | "--unravel-receiver" )
                 LRHOST=$1
                 [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
                 export LRHOST
@@ -410,12 +410,21 @@ function cluster_detect() {
   NAME2="broker2"
   export cluster=${CLUSTER_ID,,}
 
+  export HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
+  echo "Headnode IP: ${HEADIP}"
+
+  export AMBARI_URL="https://${CLUSTER_ID}.azurehdinsight.net"
+  echo "Cluster Ambari URL: $AMBARI_URL"
+  export AMBARI_PORT="8080"
+
   sudo apt-get -y install jq
-  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
-  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
-  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
-  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
-  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://$CLUSTER_ID.azurehdinsight.net/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
+
+  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
+  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
+  # TODO, this assumes exactly 2 Kafka brokers, which is not always the case.
+  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
+  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
+  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
   prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port=9999\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port=9999"
 
   echo "appending kafka properties to /tmp/unravel/unravel.ext.properties"

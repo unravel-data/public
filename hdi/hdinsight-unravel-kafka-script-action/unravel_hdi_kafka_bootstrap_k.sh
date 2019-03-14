@@ -1,7 +1,7 @@
 #! /bin/bash
 
 ################################################################################################
-# Unravel for HDInsight Bootstrap Script                                                       #
+# Unravel 4.3, 4.4, and 4.5 for HDInsight Bootstrap Script                                     #
 #                                                                                              #
 # The bootstrap script log is located at /media/ephemeral0/logs/others/node_bootstrap.log      #
 ################################################################################################
@@ -409,18 +409,19 @@ function cluster_detect() {
   NAME1="broker1"
   NAME2="broker2"
   export cluster=${CLUSTER_ID,,}
-  
-  export HEADNODEIP=`ping -c 1 headnodehost |grep PING |awk '{print $3}' |sed -e 's:(::g' |sed -e 's:)::g'`
-  echo ${HEADNODEIP}
+
+  export HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
+  echo "Headnode IP: ${HEADIP}"
 
   sudo apt-get -y install jq
-  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADNODEIP}:8080/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
-  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADNODEIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
-  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADNODEIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
-  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADNODEIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
-  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADNODEIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
+  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADIP}:8080/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
+  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
+  # TODO, this assumes exactly 2 Kafka brokers, which is not always the case.
+  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
+  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
+  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G http://${HEADIP}:8080/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
   prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port=9999\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port=9999"
- 
+  
   echo "appending kafka properties to /tmp/unravel/unravel.ext.properties"
   echo -e $prop | tee -a ${OUT_PROP_FILE}
  

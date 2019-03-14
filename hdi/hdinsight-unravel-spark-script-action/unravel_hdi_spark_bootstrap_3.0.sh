@@ -1,18 +1,12 @@
 #! /bin/bash
 
 ################################################################################################
-# Unravel for HDInsight Bootstrap Script                                                       #
+# Unravel 4.4 for HDInsight Bootstrap Script                                                   #
 #                                                                                              #
 # The bootstrap script log is located at /media/ephemeral0/logs/others/node_bootstrap.log      #
 ################################################################################################
 
 [ ! -z "$VERBOSE" ] && set -x
-
-
-
-
-
-
 
 # Unravel Integration - common functionality
 
@@ -1630,37 +1624,37 @@ function install() {
                 install_usage
                 exit 0
                 ;;
-            --unravel-server )
+            "unravel-server" | "--unravel-server" )
                 UNRAVEL_SERVER=$1
                 [[ $UNRAVEL_SERVER != *":"* ]] && UNRAVEL_SERVER=${UNRAVEL_SERVER}:3000
                 export UNRAVEL_SERVER
                 shift
                 ;;
-            --unravel-receiver )
+            "unravel-receiver" | "--unravel-receiver" )
                 LRHOST=$1
                 [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
                 export LRHOST
                 shift
                 ;;
-            --hive-version )
+            "hive-version" | "--hive-version" )
                 export HIVE_VER_XYZ=$1
                 shift
                 ;;
-            --spark-version )
+            "spark-version" | "--spark-version" )
                 export SPARK_VER_XYZ=$1
                 shift
                 ;;
-            --spark-load-mode )
+            "spark-load-mode" | "--spark-load-mode" )
                 export SPARK_APP_LOAD_MODE=$1
                 shift
                 ;;
-            --env)
+            "env" | "--env")
                 for ENV in "$(echo $1 | tr ',' ' ')"; do
                   eval "export $ENV"
                 done
                 shift
                 ;;
-            --uninstall)
+            "uninstall" | "--uninstall")
                 export UNINSTALL=True
                 shift
                 ;;
