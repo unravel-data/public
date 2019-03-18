@@ -758,7 +758,7 @@ function gen_sensor_properties() {
 # sleep-sec=30
 # unravel-server=127.0.0.1
 # cluster-id=j-default
-# cluster-type=emr
+# cluster-type=hdi
 # chunk-size=20
 EOF
 }

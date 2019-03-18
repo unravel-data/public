@@ -758,11 +758,10 @@ function gen_sensor_properties() {
 # debug=false
 # done-dir=/path/to/done/dir
 # sleep-sec=30
-# unravel-server=127.0.0.1
-# cluster-id=j-default
-# cluster-type=emr
 # chunk-size=20
-unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`:
+cluster-type=hdi
+cluster-id=`echo $CLUSTER_ID`
+unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
 EOF
 }
 
