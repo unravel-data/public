@@ -749,6 +749,7 @@ EOF
 }
 
 function gen_sensor_properties() {
+  sudo mkdir -p /usr/local/unravel_es/etc
   cat <<EOF > /usr/local/unravel_es/etc/unravel_es.properties
 #######################################################
 # unravel_es settings                                 #
@@ -786,15 +787,16 @@ function es_already_installed() {
 #  - ENABLE_GPL_LZO                                                                           #
 ###############################################################################################
 function es_install() {
+  echo "Attempting to install ES (Unravel MR Sensor)" | tee -a ${OUT_FILE}
   if isFunction can_install_es; then
     if ! can_install_es; then
-      echo "Unravel MR Sensor (unravel_es) is not eligible" | tee -a ${OUT_FILE}
+      echo "Unravel MR Sensor (unravel_es) is not eligible since can only be installed on master node" | tee -a ${OUT_FILE}
       return 0
     fi
   fi
 
   if es_already_installed; then
-    echo "Unravel MR Sensor (unravel_es) already installed" | tee -a ${OUT_FILE}
+    echo "Unravel MR Sensor (unravel_es) already installed by checking /usr/local/unravel_es, will attempt to overwrite it." | tee -a ${OUT_FILE}
   fi
 
   sudo /bin/mkdir -p /usr/local/unravel_es/lib
@@ -854,7 +856,10 @@ function es_install() {
       sudo sed -i '20imkdir -p /tmp/unravel' /etc/init.d/unravel_es
       sudo sed -i '21ichmod 777 /tmp/unravel' /etc/init.d/unravel_es
       sudo systemctl daemon-reload
-      return $(es_postinstall_check)
+      es_postinstall_check
+      local result=$?
+      echo "Done calling es_postinstall_check with result ${result} (1 == failed, 0 == passed)." | tee -a $OUT_FILE
+      return $result
   else
       echo "ERROR: Unravel MR Sensor (unravel_es) start failed" | tee -a  $OUT_FILE
       return 1
@@ -868,9 +873,9 @@ function es_uninstall() {
   if es_already_installed; then
     sudo /etc/init.d/unravel_es stop 2>/dev/null
     sudo /bin/rm -fr  /usr/local/unravel_es /etc/init.d/unravel_es  2>/dev/null
-    echo "Unravel MR Sensor (unravel_es) is uninstalled" | tee -a ${OUT_FILE}
+    echo "Unravel MR Sensor (unravel_es) was successfully uninstalled" | tee -a ${OUT_FILE}
   else
-    echo "Unravel MR Sensor (unravel_es) has not been installed. Aborting." | tee -a ${OUT_FILE}
+    echo "Unravel MR Sensor (unravel_es) has not been installed. Aborting the uninstall." | tee -a ${OUT_FILE}
   fi
 }
 
@@ -895,28 +900,40 @@ function es_setup() {
 
 ###############################################################################################
 # Performs post-installation sanity checks                                                    #
+# Returns 0 if properly installed on a master node, otherwise, return 1                       #
 #                                                                                             #
 # Accepts:                                                                                    #
-#  - es_postinstall_check_arguments()                                                         #
+#  - es_postinstall_check_configs()                                                         #
 #  - can_install_es()                                                                         #
 ###############################################################################################
 function es_postinstall_check() {
-  if isFunction can_install_es; then
-    can_install_es && return 0
-  fi
+  echo "Performing Unravel ES post-install checks to ensure service is running and properly configured" | tee -a ${OUT_FILE}
 
+  if isFunction can_install_es ; then
+     can_install_es
+     if [ 0 -ne $? ]; then
+       echo "Not running on a master node, so can skip the ES Post Install check" | tee -a ${OUT_FILE}
+       return 0
+     fi
+  fi
   # make sure that 'unravel_es' is running and using correct arguments
-  local es_cmd=$(ps aexo "command" | grep unravel-emr-sensor | grep -v grep)
+  local es_cmd=$(ps aexo "command" | grep -E "unravel.emr.sensor" | grep -v "grep")
+  echo "ES Process = ${es_cmd}" | tee -a ${OUT_FILE}
+  echo "" | tee -a ${OUT_FILE}
 
   if [ -z "$es_cmd" ]; then
     echo "ERROR: 'unravel_es' service is not running!" | tee -a ${OUT_FILE}
     return 1
   fi
 
-  if isFunction es_postinstall_check_arguments; then
-    es_postinstall_check_arguments $es_cmd && return 0
-    return 1
+  if isFunction es_postinstall_check_configs; then
+    es_postinstall_check_configs
+    if [ 0 -ne $? ]; then
+      echo "ERROR: es_postinstall_check_configs failed" | tee -a ${OUT_FILE}
+      return 1
+    fi
   fi
+  return 0
 }
 
 function install_service_dflt() {
@@ -1489,7 +1506,7 @@ function install_es() {
     if isFunction can_install_es; then
         can_install_es
         if [ 0 -ne $? ]; then
-            echo "Node is not eligible for unravel_es installation. Skipping" | tee -a ${OUT_FILE}
+            echo "Node is not eligible for unravel_es installation since it is not a master node. Skipping" | tee -a ${OUT_FILE}
             return
         fi
     fi
@@ -1847,7 +1864,8 @@ function cluster_detect() {
   local full_host_name=$(hostname -f)
 
   echo "AMBARI_USR=$AMBARI_USR" | tee -a ${OUT_FILE}
-  echo "AMBARI_PWD=$AMBARI_PWD" | tee -a ${OUT_FILE}
+  # Should not log the Ambari password.
+  #echo "AMBARI_PWD=$AMBARI_PWD" | tee -a ${OUT_FILE}
 
   if [ "${full_host_name,,}" == "${primary_head_node,,}" ]; then
     HOST_ROLE=master
@@ -2069,15 +2087,69 @@ function can_install_es() {
     return 1
 }
 
-function es_postinstall_check_arguments() {
-    # make sure cluster-id is provided
-    local ret=0
-    echo $1 | grep -e '--cluster-id'
-    if [ 0 -ne $? ]; then
-        echo "ERROR: 'unravel_es' for Qubole does not use cluster-id" | tee -a ${OUT_FILE}
-        ret=1
+################################################################################################
+# Test an IP address for validity:                                                             #
+# Usage:                                                                                       #
+#   valid_ip IP_ADDRESS                                                                        #
+# Will return 0 if valid, otherwise, 1                                                         #
+################################################################################################
+function valid_ip() {
+    local  ip=$1
+    local  stat=1
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
     fi
-    return $ret
+    return $stat
+}
+
+################################################################################################
+# Check if the Unravel ES config is correct.                                                   #
+#                                                                                              #
+# Usage:                                                                                       #
+#   es_postinstall_check_configs                                                               #
+# Will return 0 if valid, otherwise, 1                                                         #
+################################################################################################
+function es_postinstall_check_configs() {
+    if [[ ! -e  /usr/local/unravel_es/etc/unravel_es.properties ]]; then
+        echo "ERROR: Did not find /usr/local/unravel_es/etc/unravel_es.properties file." | tee -a ${OUT_FILE}
+        return 1
+    fi
+
+    FOUND_CLUSTER_ID=`grep -E "^cluster-id=" /usr/local/unravel_es/etc/unravel_es.properties | cut -d '=' -f2`
+    FOUND_UNRAVEL_SERVER=`grep -E "^unravel-server=" /usr/local/unravel_es/etc/unravel_es.properties | cut -d'=' -f2 | cut -d':' -f1`
+
+    echo "The unravel_es.properties file contains the following cluster-id=${FOUND_CLUSTER_ID}" | tee -a ${OUT_FILE}
+    echo "The unravel_es.properties file contains the following unravel-server=${FOUND_UNRAVEL_SERVER}" | tee -a ${OUT_FILE}
+
+    if [[ -z "$FOUND_CLUSTER_ID" ]]; then
+        echo "ERROR: Property cluster-id is missing in unravel_es.properties" | tee -a ${OUT_FILE}
+        return 1
+    else
+        if [[ "$FOUND_CLUSTER_ID" == "j-DEFAULT" ]]; then
+            echo "ERROR: Must set cluster-id to a valid value in unravel_es.properties instead of $FOUND_CLUSTER_ID" | tee -a ${OUT_FILE}
+            return 1
+        fi
+    fi
+
+    if [[ -z "$FOUND_UNRAVEL_SERVER" ]]; then
+        echo "ERROR: Property unravel-server is missing in unravel_es.properties" | tee -a ${OUT_FILE}
+        return 1
+    else
+        valid_ip "$FOUND_UNRAVEL_SERVER"
+        if [[ 0 -ne $? ]]; then
+            echo "WARNING: Property unravel-server in unravel_es.properties is not a valid IP address. Check that it's a valid FQDN." | tee -a ${OUT_FILE}
+        else
+            echo "The unravel-server property is a proper IP"  | tee -a ${OUT_FILE}
+        fi
+    fi
+
+    return 0
 }
 
 function install_service_impl() {
