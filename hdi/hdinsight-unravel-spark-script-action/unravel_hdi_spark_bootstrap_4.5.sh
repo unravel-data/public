@@ -3181,7 +3181,7 @@ def main():
     sleep(35)
     print('Checking Ambari Operations')
     while(get_latest_req()['request_status'] not in ['COMPLETED','FAILED','ABORTED']
-          and get_latest_req()['requests_context'] != 'run_customscriptaction'):
+          and get_latest_req()['request_context'] != 'run_customscriptaction'):
         print('Operations Status:' + get_latest_req()['request_status'])
         sleep(60)
     print('All Operations completed, Comparing configs')
