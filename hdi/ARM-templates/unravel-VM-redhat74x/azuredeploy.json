@@ -122,6 +122,12 @@
       "metadata": {
         "description": "The command to execute."
       }
+    },
+    "rpmUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "RPM download url"
+      }
     }
 
   },
@@ -235,7 +241,7 @@
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": "[split(parameters('fileUris'), ' ')]",
-          "commandToExecute": "[concat(parameters('commandToExecute'), ' ', parameters('blobstoracct'), ' ', parameters('blobpriackey'), ' ', parameters('blobsecackey'), ' ', parameters('dlkstoreacct'), ' ',  parameters('dlkclientaid'), ' ',  parameters('dlkclientkey'), ' ', parameters('dlkclitokept'), ' ', parameters('dlkcliropath') ) ]"
+          "commandToExecute": "[concat(parameters('commandToExecute'), ' ', parameters('blobstoracct'), ' ', parameters('blobpriackey'), ' ', parameters('blobsecackey'), ' ', parameters('dlkstoreacct'), ' ',  parameters('dlkclientaid'), ' ',  parameters('dlkclientkey'), ' ', parameters('dlkclitokept'), ' ', parameters('dlkcliropath'), ' ', parameters('rpmUrl') ) ]"
         }
       }
     }
