@@ -1,7 +1,6 @@
-# Download unravel 4.5.0.4 latest rpm
-RPMFILE=`curl -sS -u unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.0/  |grep EMR |awk '{ print $6}' |cut -d\" -f2 |grep 4.5.0.4 |tail -1`
-echo $RPMFILE > /tmp/rpmfilename
-curl -v -u  unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.0/${RPMFILE} -o ${RPMFILE}
+# Download unravel 4.2.7 rpm
+curl -k -v -u unravel-42:CluB6bfXpi https://preview.unraveldata.com/unravel/RPM/4.2.7/Azure/unravel-4.2.7-Azure-latest.rpm -o unravel-4.2.7-Azure-latest.rpm
+#/usr/bin/wget http://preview.unraveldata.com/img/unravel-4.2-1073.x86_64.EMR.rpm
 
 BLOBSTORACCT=${1}
 BLOBPRIACKEY=${2}
@@ -12,6 +11,7 @@ DLKCLIENTAID=${5}
 DLKCLIENTKEY=${6}
 DLKCLITOKEPT=${7}
 DLKCLIROPATH=${8}
+
 
 
 # Prepare the VM for unravel rpm install
@@ -50,9 +50,10 @@ echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
 
 /usr/bin/mount -a
 
+
+
 # install unravel rpm
-rpmfile_name=`cat /tmp/rpmfilename`
-/usr/bin/rpm  -U $rpmfile_name
+/usr/bin/rpm  -U unravel-4.2.7-Azure-latest.rpm
 
 /usr/bin/sleep 5
 
@@ -60,6 +61,7 @@ rpmfile_name=`cat /tmp/rpmfilename`
 # Update Unravel Lic Key into the unravel.properties file
 # Obtain a valid unravel Lic Key file ; the following is just non working one
 echo "com.unraveldata.lic=1p6ed4s492012j5rb242rq3x3w702z1l455g501z2z4o2o4lo675555u3h" >> /usr/local/unravel/etc/unravel.properties
+
 echo "export CDH_CPATH="/usr/local/unravel/dlib/hdp2.6.x/*"" >> /usr/local/unravel/etc/unravel.ext.sh
 
 # Update Azure blob storage account credential in unravel.properties file
@@ -70,10 +72,7 @@ if [ $BLOBSTORACCT != "NONE" ] && [ $BLOBPRIACKEY != "NONE" ] && [ $BLOBSECACKEY
    echo "blob storage account name is ${BLOBSTORACCT}"
    echo "blob primary access key is ${BLOBPRIACKEY}"
    echo "blob secondary access key is ${BLOBSECACKEY}"
-   echo "# Adding Blob Storage Account information, Update and uncomment following lines" >> /usr/local/unravel/etc/unravel.properties
-   echo "com.unraveldata.hdinsight.storage-account-name-1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> /usr/local/unravel/etc/unravel.properties
    echo "com.unraveldata.hdinsight.primary-access-key=${BLOBPRIACKEY}" >> /usr/local/unravel/etc/unravel.properties
-   echo "com.unraveldata.hdinsight.storage-account-name-2=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> /usr/local/unravel/etc/unravel.properties
    echo "com.unraveldata.hdinsight.secondary-access-key=${BLOBSECACKEY}" >> /usr/local/unravel/etc/unravel.properties
 
 else
@@ -107,13 +106,6 @@ echo "com.unraveldata.spark.live.pipeline.enabled=true" >> /usr/local/unravel/et
 echo "com.unraveldata.spark.appLoading.maxAttempts=10" >> /usr/local/unravel/etc/unravel.properties
 echo "com.unraveldata.spark.appLoading.delayForRetry=4000" >> /usr/local/unravel/etc/unravel.properties
 echo "com.unraveldata.onprem=false" >> /usr/local/unravel/etc/unravel.properties
-
-# Switch user 
-useradd hdfs
-groupadd hadoop
-usermod -a -G hadoop hdfs
-
-/usr/local/unravel/install_bin/switch_to_user.sh hdfs hadoop
 
 
 # Starting Unravel daemons

@@ -1,7 +1,5 @@
-# Download unravel 4.5.0.4 latest rpm
-RPMFILE=`curl -sS -u unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.0/  |grep EMR |awk '{ print $6}' |cut -d\" -f2 |grep 4.5.0.4 |tail -1`
-echo $RPMFILE > /tmp/rpmfilename
-curl -v -u  unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.0/${RPMFILE} -o ${RPMFILE}
+# Download unravel 4.4.3.0 rpm
+curl -v -u  Unravel-4430:YzWY2mxzur https://preview.unraveldata.com/unravel/RPM/4.4.3/unravel-4.4.3.0b0005-1.x86_64.EMR.rpm -o unravel-4.4.3.0b0005-1.x86_64.EMR.rpm
 
 BLOBSTORACCT=${1}
 BLOBPRIACKEY=${2}
@@ -51,8 +49,7 @@ echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
 /usr/bin/mount -a
 
 # install unravel rpm
-rpmfile_name=`cat /tmp/rpmfilename`
-/usr/bin/rpm  -U $rpmfile_name
+/usr/bin/rpm  -U unravel-4.4.3.0b0005-1.x86_64.EMR.rpm
 
 /usr/bin/sleep 5
 

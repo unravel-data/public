@@ -1,7 +1,5 @@
-# Download unravel 4.5.0.4 latest rpm
-RPMFILE=`curl -sS -u unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.0/  |grep EMR |awk '{ print $6}' |cut -d\" -f2 |grep 4.5.0.4 |tail -1`
-echo $RPMFILE > /tmp/rpmfilename
-curl -v -u  unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.0/${RPMFILE} -o ${RPMFILE}
+# Download unravel 4.3.1.7 rpm
+curl https://preview.unraveldata.com/unravel/RPM/4.3.1/Azure/unravel-4.3.1.7b0027-1.x86_64.EMR.rpm -o unravel-4.3.1.7b0027-1.x86_64.EMR.rpm
 
 BLOBSTORACCT=${1}
 BLOBPRIACKEY=${2}
@@ -50,16 +48,23 @@ echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
 
 /usr/bin/mount -a
 
+sleep 10
+
+mkdir -p /srv/local/unravel
+chmod -R 755 /srv/local
+
+ln -s /srv/local/unravel  /usr/local/unravel
+chmod -R 755 /usr/local/unravel
+
 # install unravel rpm
-rpmfile_name=`cat /tmp/rpmfilename`
-/usr/bin/rpm  -U $rpmfile_name
+/usr/bin/rpm  -U unravel-4.3.1.7b0027-1.x86_64.EMR.rpm
 
 /usr/bin/sleep 5
-
+/usr/local/unravel/install_bin/await_fixups.sh
 
 # Update Unravel Lic Key into the unravel.properties file
 # Obtain a valid unravel Lic Key file ; the following is just non working one
-echo "com.unraveldata.lic=1p6ed4s492012j5rb242rq3x3w702z1l455g501z2z4o2o4lo675555u3h" >> /usr/local/unravel/etc/unravel.properties
+echo "com.unraveldata.lic=unravel_license_string" >> /usr/local/unravel/etc/unravel.properties
 echo "export CDH_CPATH="/usr/local/unravel/dlib/hdp2.6.x/*"" >> /usr/local/unravel/etc/unravel.ext.sh
 
 # Update Azure blob storage account credential in unravel.properties file

@@ -397,43 +397,106 @@ function cluster_detect() {
   export AMBARI_USR=$(echo -e "import hdinsight_common.Constants as Constants\nprint Constants.AMBARI_WATCHDOG_USERNAME" | python)
   export AMBARI_PWD=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nimport hdinsight_common.Constants as Constants\nimport base64\nbase64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password\nprint base64.b64decode(base64pwd)" | python)
 
-  export CLUSTER_ID=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nprint ClusterManifestParser.parse_local_manifest().deployment.cluster_name" | python)
+  CLUSTER_ID=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nprint ClusterManifestParser.parse_local_manifest().deployment.cluster_name" | python)
 
   local primary_head_node=$(get_primary_headnode)
   local full_host_name=$(hostname -f)
 
   echo "AMBARI_USR=$AMBARI_USR" | tee -a ${OUT_FILE}
-  echo "AMBARI_PWD=$AMBARI_PWD" | tee -a ${OUT_FILE}
+  # DO NOT echo the password since it will show up in the Ambari Custom Commands
+  #echo "AMBARI_PWD=$AMBARI_PWD" | tee -a ${OUT_FILE}
   echo "CLUSTER_ID=$CLUSTER_ID" | tee -a ${OUT_FILE}
 
-  NAME1="broker1"
-  NAME2="broker2"
-  export cluster=${CLUSTER_ID,,}
-
-  export HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
+  HEADIP=`ping -c 1 headnodehost | grep PING | awk '{print $3}' | tr -d '()'`
   echo "Headnode IP: ${HEADIP}"
 
-  export AMBARI_URL="https://${CLUSTER_ID}.azurehdinsight.net"
+  AMBARI_URL="https://${CLUSTER_ID}.azurehdinsight.net"
   echo "Cluster Ambari URL: $AMBARI_URL"
-  export AMBARI_PORT="8080"
+
+  AMBARI_PORT="8080"
+  API_URL="http://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER"
+  #API_URL="$AMBARI_URL/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER"
+  echo "Ambari API for Brokers: $API_URL"
 
   sudo apt-get -y install jq
 
-  export KAFKAZKHOSTS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/ZOOKEEPER/components/ZOOKEEPER_SERVER | jq -r '["\(.host_components[].HostRoles.host_name):2181"] | join(",")' | cut -d',' -f1,2`
-  export KAFKABROKERS=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2`
-  # TODO, this assumes exactly 2 Kafka brokers, which is not always the case.
-  export bootstrap_server1=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f1|cut -d'.' -f1`
-  export bootstrap_server2=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f1`
-  export port=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G https://${HEADIP}:${AMBARI_PORT}/api/v1/clusters/$CLUSTER_ID/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")' | cut -d',' -f1,2|cut -d',' -f2|cut -d'.' -f6|cut -d':' -f2`
-  prop="com.unraveldata.ext.kafka.clusters="$cluster"\ncom.unraveldata.ext.kafka."$cluster".bootstrap_servers="$bootstrap_server1":"$port,$bootstrap_server2":"$port"\ncom.unraveldata.ext.kafka."$cluster".jmx_servers="$NAME1,$NAME2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".host="$bootstrap_server1"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME1".port=9999\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".host="$bootstrap_server2"\ncom.unraveldata.ext.kafka."$cluster".jmx."$NAME2".port=9999"
+  # Example of what the raw data looks like.
+  export BROKERS_WITH_PORT=`curl -sS -u $AMBARI_USR:$AMBARI_PWD -G $API_URL | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")'`
 
-  echo "appending kafka properties to /tmp/unravel/unravel.ext.properties"
-  echo -e $prop | tee -a ${OUT_PROP_FILE}
-  
-  echo "EXT KAFKA PROP=$prop" | tee -a ${OUT_FILE}
-  if [[ "$full_host_name" == "hn0"* ]] && [ -n "$bootstrap_server1" ] && [ -n "$bootstrap_server2" ]; then
+  echo "Raw config value: ${BROKERS_WITH_PORT}"
+  ARR_BROKERS_WITH_PORT=(${BROKERS_WITH_PORT//,/ })
+  echo "Raw value split by comma: ${ARR_BROKERS_WITH_PORT[@]}"
+
+  # E.g., [FQDN1, FQDN2 ...]
+  HOSTNAMES_FQDN=()
+
+  # E.g., [shortname1 shortname2 ...]
+  HOSTNAMES_SHORT=()
+
+  # E.g., [FQDN1:9092 FQDN2:9092 ...]
+  BOOTSTRAP_SERVERS=()
+
+  # E.g., [broker1 broker2 ...]
+  JMX_SERVERS=()
+  i=0
+  echo "Brokers:"
+  for x in "${ARR_BROKERS_WITH_PORT[@]}"
+  do
+      (( i += 1 ))
+
+      FQDN_NAME=`echo $x | cut -d':' -f1`
+      echo "$i.  FQDN: ${FQDN_NAME}"
+
+      HOST_SHORT=`echo $x | cut -d':' -f1 | cut -d'.' -f1`
+
+      BROKER_PORT=`echo $x | cut -d':' -f2`
+      echo "$i.  Port: $BROKER_PORT"
+
+      HOSTNAMES_FQDN+=( ${FQDN_NAME} )
+      HOSTNAMES_SHORT+=( ${HOST_SHORT} )
+      BOOTSTRAP_SERVERS+=( "${FQDN_NAME}:${BROKER_PORT}" )
+      JMX_SERVERS+=( "broker$i" )
+  done
+
+  echo ""
+  echo "FQDNs: ${HOSTNAMES_FQDN[@]}"
+  echo "Short hostnames: ${HOSTNAMES_SHORT[@]}"
+  echo "Bootstrap servers: ${BOOTSTRAP_SERVERS[@]}"
+  echo "JMX servers: ${JMX_SERVERS[@]}"
+  echo ""
+
+  # Calculate the unravel property
+  props="com.unraveldata.ext.kafka.clusters=${CLUSTER_ID}\n"
+
+  BOOTSTRAP_SERVER_STR=`echo ${BOOTSTRAP_SERVERS[@]} | tr ' ' ','`
+  props+="com.unraveldata.ext.kafka.${CLUSTER_ID}.bootstrap_servers=${BOOTSTRAP_SERVER_STR}\n"
+
+  JMX_SERVER_STR=`echo ${JMX_SERVERS[@]} | tr ' ' ','`
+  props+="com.unraveldata.ext.kafka.${CLUSTER_ID}.jmx_servers=${JMX_SERVER_STR}\n"
+
+  i=0
+  for fqdn in "${HOSTNAMES_FQDN[@]}"
+  do
+      (( i += 1 ))
+      name=( "broker$i" )
+      props+="com.unraveldata.ext.kafka.${CLUSTER_ID}.jmx.${name}.host=${fqdn}\n"
+      props+="com.unraveldata.ext.kafka.${CLUSTER_ID}.jmx.${name}.port=9999\n"
+  done
+  echo "Unravel prop (contains \n):"
+  echo "$props"
+  echo ""
+  echo "Appending Kafka properties to /tmp/unravel/unravel.ext.properties"
+  echo -e $props | tee -a -${OUT_PROP_FILE}
+  echo ""
+  echo "********************************************************************************"
+  echo "PLEASE ENSURE THAT THE UNRAVEL SERVER CAN PING ALL OF THE HOSTNAMES SHOWN ABOVE."
+  echo "If unable to ping, you may have to modify /etc/hosts on the Unravel server.     "
+  echo "********************************************************************************"
+  echo ""
+  echo "EXT KAFKA PROP=$props" | tee -a ${OUT_FILE}
+  if [[ "$full_host_name" == "hn0"* ]] && [ ${#BOOTSTRAP_SERVERS[@]} -gt 0 ] ; then
     set_temp_prop_file
-    echo -e $prop | tee -a ${OUT_PROP_FILE}
+    echo -e $props | tee -a ${OUT_PROP_FILE}
     setup_restserver
     if [ -n "${UNRAVEL_RESTSERVER_HOST_AND_PORT}" ]; then
       curl -T ${OUT_PROP_FILE} ${UNRAVEL_RESTSERVER_HOST_AND_PORT}/logs/any/kafka_script_action/kafka_prop/ext_kafka_props 1>/dev/null 2>/dev/null
