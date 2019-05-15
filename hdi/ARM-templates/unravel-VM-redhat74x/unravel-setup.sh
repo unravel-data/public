@@ -87,7 +87,7 @@ echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
 /usr/bin/mount -a
 
 # install unravel rpm
-/usr/bin/rpm  -U unravel-4.2.7-Azure-latest.rpm
+/usr/bin/rpm  -U $(basename $RPM_URL)
 
 /usr/bin/sleep 5
 
