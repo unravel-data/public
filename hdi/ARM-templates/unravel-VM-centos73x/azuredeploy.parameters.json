@@ -49,6 +49,9 @@
         },
         "commandToExecute": {
             "value": "sh unravel-setup.sh"
+        },
+        "rpmUrl": {
+            "value": "https://preview.unraveldata.com/img/unravel-4.5.0.5-Azure.rpm"
         }
     }
 }
