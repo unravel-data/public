@@ -119,7 +119,7 @@ fi
 # Update Azure blob storage account credential in unravel.properties file
 # Update and uncomment the following lines to reflect your Azure blob storage account name and keys
 
-if [ $BLOBSTORACCT != "NONE" ] && [ $BLOBPRIACKEY != "NONE" ] && [ $BLOBSECACKEY != "NONE" ]; then
+if [ $BLOBSTORACCT != "NONE" ] && [ $BLOBPRIACKEY != "NONE" ]; then
 
    echo "blob storage account name is ${BLOBSTORACCT}"
    echo "blob primary access key is ${BLOBPRIACKEY}"

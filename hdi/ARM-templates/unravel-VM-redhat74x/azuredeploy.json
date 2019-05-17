@@ -187,7 +187,7 @@
       "name": "[parameters('vmName')]",
       "location": "[resourceGroup().location]",
       "tags": {
-        "Tag1": "ManagedVM"
+        "Tag1": "Unravel Server"
       },
       "dependsOn": [
         "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
