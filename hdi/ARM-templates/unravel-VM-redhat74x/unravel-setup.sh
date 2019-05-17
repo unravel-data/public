@@ -1,5 +1,8 @@
 # Download unravel rpm
 ver_comp () {
+    # $1 == $2 return 0
+    # $1 < $2 return 2
+    # $1 > $2 return 1
     if [[ $1 == $2 ]]
     then
         return 0
@@ -103,6 +106,15 @@ if [[ $? -eq 2 ]]; then
     echo "export CDH_CPATH='/usr/local/unravel/dlib/hdp2.6.x/*'" >> /usr/local/unravel/etc/unravel.ext.sh
 fi
 
+# run switch to user for version 4.3 and higher
+ver_comp $RPM_VER 4.2.7
+if [[ $? -eq 1 ]]; then
+    sudo useradd  hdfs
+    sudo groupadd hadoop
+    sudo usermod -a -G hadoop hdfs
+    sudo /usr/local/unravel/install_bin/switch_to_user.sh hdfs hadoop
+fi
+
 
 # Update Azure blob storage account credential in unravel.properties file
 # Update and uncomment the following lines to reflect your Azure blob storage account name and keys
@@ -113,10 +125,17 @@ if [ $BLOBSTORACCT != "NONE" ] && [ $BLOBPRIACKEY != "NONE" ] && [ $BLOBSECACKEY
    echo "blob primary access key is ${BLOBPRIACKEY}"
    echo "blob secondary access key is ${BLOBSECACKEY}"
    echo "# Adding Blob Storage Account information, Update and uncomment following lines" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.hdinsight.storage-account-name-1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.hdinsight.primary-access-key=${BLOBPRIACKEY}" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.hdinsight.storage-account-name-2=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.hdinsight.secondary-access-key=${BLOBSECACKEY}" >> ${UN_PROP_PATH}
+   # Blob storage properties for Unravel 4.5.x and newer
+   ver_comp $RPM_VER 4.4.3
+   if [[ $? -eq 1 ]]; then
+       echo "com.unraveldata.hdinsight.storage-account.1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
+       echo "com.unraveldata.hdinsight.access-key.1=${BLOBPRIACKEY}" >> ${UN_PROP_PATH}
+   else
+       echo "com.unraveldata.hdinsight.storage-account-name-1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
+       echo "com.unraveldata.hdinsight.primary-access-key=${BLOBPRIACKEY}" >> ${UN_PROP_PATH}
+       echo "com.unraveldata.hdinsight.storage-account-name-2=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
+       echo "com.unraveldata.hdinsight.secondary-access-key=${BLOBSECACKEY}" >> ${UN_PROP_PATH}
+   fi
 
 else
    echo "One or more of your blob storage account parameter is invalid, please check your parameter file"
