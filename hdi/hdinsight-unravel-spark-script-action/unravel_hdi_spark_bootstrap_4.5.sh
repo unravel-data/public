@@ -2973,8 +2973,13 @@ def check_spark_default_configs(uninstall=False):
                     try:
                         print ('Current: {0}: {1}'.format(key, new_spark_def['properties'][key]))
                         if key == 'spark.eventLog.dir':
-                            if new_spark_def['properties'][key].startswith('wasb') and hdfs_url not in new_spark_def['properties'][key]:
+                            protocol = new_spark_def['properties'][key].split(':')[0]
+                            # Added blob storage account in spark event dir for Blob Storage
+                            if protocol.startswith('wasb') and hdfs_url not in new_spark_def['properties'][key]:
                                 new_spark_def['properties'][key] = new_spark_def['properties'][key].replace('wasb://', hdfs_url)
+                            # Add hdfs fs.default path to spark event dir for ADL
+                            if protocol.startswith('adl') and hdfs_url not in new_spark_def['properties'][key]:
+                                new_spark_def['properties'][key] = new_spark_def['properties'][key].replace(protocol + '://', hdfs_url)
                         elif (key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and get_prop_val(val) not in new_spark_def['properties'][key]:
                             regex = get_prop_regex(val, '.*?', *['[0-9]{1,3}'] * 3)
                             if re.search(regex, new_spark_def['properties'][key]):
