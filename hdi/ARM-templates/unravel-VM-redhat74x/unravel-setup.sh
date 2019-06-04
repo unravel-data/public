@@ -172,3 +172,4 @@ echo "com.unraveldata.spark.appLoading.delayForRetry=4000" >> ${UN_PROP_PATH}
 # uncomment below will start unravel daemon automatically but within unravel_all.sh start  will have exit status=1.
 # Thus we recommend login to unravel VM and run unravel_all.sh manually
 /etc/init.d/unravel_all.sh start
+exit 0
