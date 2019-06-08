@@ -1,5 +1,5 @@
 # Download unravel 4.5.0.5 latest rpm
-RPMFILE=`curl -sS -u unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.2/  |grep EMR |awk '{ print $6}' |cut -d\" -f2  |grep 4.5.2.0 |tail -1`
+RPMFILE=`curl -sS -u unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.2/  |grep EMR |awk '{ print $6}' |cut -d\" -f2  |grep 4.5.2.0 |grep -iv rc |tail -1`
 echo $RPMFILE > /tmp/rpmfilename
 curl -v -u  unravel:WillowRoad68 https://preview.unraveldata.com/unravel/staging-RPM/4.5.2/${RPMFILE} -o ${RPMFILE}
 
