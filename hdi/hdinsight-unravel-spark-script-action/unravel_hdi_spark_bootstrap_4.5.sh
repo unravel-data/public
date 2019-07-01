@@ -3177,6 +3177,12 @@ spark_defaults_configs={'spark.eventLog.dir': [hdfs_url],
                             agent_path, argv.spark_ver[0], argv.spark_ver[1], argv.metrics_factor],
                         'spark.executor.extraJavaOptions': ['-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{1}.{2},config=executor -Dunravel.metrics.factor={3}', agent_path, argv.spark_ver[0],argv.spark_ver[1], argv.metrics_factor]}
 
+# Add account name and root path for ADL Gen 1
+if hdfs_url.startswith('adl'):
+    core_site_json = json.loads(core_site[core_site.find('{'):])
+    spark_defaults_configs['spark.unravel.azure.storage.account-name'] = [core_site_json['properties']['dfs.adls.home.hostname']]
+    spark_defaults_configs['spark.unravel.azure.storage.client-root-path'] = [core_site_json['properties']['dfs.adls.home.mountpoint']]
+
 mapred_site_configs = None
 if argv.all:
     mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
