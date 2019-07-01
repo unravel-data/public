@@ -1628,6 +1628,10 @@ function install() {
                 export METRICS_FACTOR=$1
                 shift
                 ;;
+            "all" | "--all")
+                export ENABLE_ALL_SENSOR=True
+                shift
+                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
@@ -2749,7 +2753,7 @@ function final_check(){
     echo "Running final_check.py in the background"
     cat << EOF > "/tmp/unravel/final_check.py"
 #!/usr/bin/env python
-#v1.1.6
+#v1.1.7
 import urllib2
 from subprocess import call, check_output
 import json, argparse, re, base64
@@ -2761,6 +2765,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-host', '--unravel-host', help='Unravel Server hostname', dest='unravel', required=True)
 parser.add_argument('-protocol', '--unravel-protocol', help='Unravel Server protocol', default="http")
 parser.add_argument('--lr-port', help='Unravel Log receiver port', default='4043')
+parser.add_argument('--all', help='enable all Unravel Sensor', action='store_true')
 parser.add_argument('-user', '--username', help='Ambari login username')
 parser.add_argument('-pass', '--password', help='Ambari login password')
 parser.add_argument('-c', '--cluster_name', help='ambari cluster name')
@@ -3171,7 +3176,10 @@ spark_defaults_configs={'spark.eventLog.dir': [hdfs_url],
                         'spark.driver.extraJavaOptions': ['-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{1}.{2},config=driver -Dunravel.metrics.factor={3}',
                             agent_path, argv.spark_ver[0], argv.spark_ver[1], argv.metrics_factor],
                         'spark.executor.extraJavaOptions': ['-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{1}.{2},config=executor -Dunravel.metrics.factor={3}', agent_path, argv.spark_ver[0],argv.spark_ver[1], argv.metrics_factor]}
-mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
+
+mapred_site_configs = None
+if argv.all:
+    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
                         'mapreduce.task.profile': ['true'],
                         'mapreduce.task.profile.maps': ['0-5'],
                         'mapreduce.task.profile.reduces': ['0-5'],
@@ -3213,7 +3221,9 @@ EOF
         if [ -e /etc/init.d/unravel_es ]; then
             es_uninstall
         fi
-    else
+   elif [ "$ENABLE_ALL_SENSOR" == True ]; then
+        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all
+   else
         sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR}
     fi
 }
