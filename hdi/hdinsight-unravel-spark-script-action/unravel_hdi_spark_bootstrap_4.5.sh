@@ -3222,7 +3222,7 @@ EOF
             es_uninstall
         fi
    elif [ "$ENABLE_ALL_SENSOR" == True ]; then
-        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor --all
+        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all
    else
         sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR}
     fi
