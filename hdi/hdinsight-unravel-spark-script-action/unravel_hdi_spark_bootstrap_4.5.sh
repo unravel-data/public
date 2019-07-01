@@ -1628,6 +1628,10 @@ function install() {
                 export METRICS_FACTOR=$1
                 shift
                 ;;
+            "all" | "--all")
+                export ENABLE_ALL_SENSOR=True
+                shift
+                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
@@ -3217,7 +3221,9 @@ EOF
         if [ -e /etc/init.d/unravel_es ]; then
             es_uninstall
         fi
-    else
+   elif [ "$ENABLE_ALL_SENSOR" == True ]; then
+        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor --all
+   else
         sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR}
     fi
 }
