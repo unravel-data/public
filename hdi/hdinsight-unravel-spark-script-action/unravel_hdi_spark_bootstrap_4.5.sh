@@ -3092,7 +3092,12 @@ def read_json(json_file_location):
 def restart_services():
     """ Restart Staled HDP Services"""
     print("Restarting services")
-    call('curl -u {0}:\'{1}\' -i -H \'X-Requested-By: ambari\' -X POST -d \'{{"RequestInfo": {{"command":"RESTART","context" :"Unravel request: Restart Services","operation_level":"host_component"}},"Requests/resource_filters":[{{"hosts_predicate":"HostRoles/stale_configs=true"}}]}}\' http://{2}:8080/api/v1/clusters/{3}/requests > /tmp/Restart.out 2> /tmp/Restart.err < /dev/null &'.format(argv.username, argv.password, argv.am_host, argv.cluster_name),shell=True)
+    restart_api = 'curl -u {0}:\'{1}\' -i -H \'X-Requested-By: ambari\' -X POST -d \'{{"RequestInfo": {{"command":"RESTART","context" :"Unravel request: Restart Services","operation_level":"host_component"}},"Requests/resource_filters":[{{"hosts_predicate":"HostRoles/{4}"}}]}}\' http://{2}:8080/api/v1/clusters/{3}/requests > /tmp/Restart.out 2> /tmp/Restart.err < /dev/null &'
+    # Restart all services for HDI 4.X Cluster
+    if re.search("Hadoop 3.[0-9]", check_output(['hadoop', 'version'])):
+        call(restart_api.format(argv.username, argv.password, argv.am_host, argv.cluster_name, "cluster_name=" + argv.cluster_name),shell=True)
+    else:
+        call(restart_api.format(argv.username, argv.password, argv.am_host, argv.cluster_name, "stale_configs=true"),shell=True)
 
 def remove_propery(prop_val, prop_regex):
     """
