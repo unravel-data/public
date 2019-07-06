@@ -1630,7 +1630,6 @@ function install() {
                 ;;
             "uninstall" | "--uninstall")
                 export UNINSTALL=True
-                shift
                 ;;
             "metrics-factor" | "--metrics-factor")
                 export METRICS_FACTOR=$1
@@ -1638,15 +1637,12 @@ function install() {
                 ;;
             "all" | "--all")
                 export ENABLE_ALL_SENSOR=True
-                shift
                 ;;
             "enable-polling" | "--enable-polling")
                 export AM_POLLING=true
-                shift
                 ;;
             "disable-aa" | "--disable-aa")
                export ENABLE_AA=false
-               shift
                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
