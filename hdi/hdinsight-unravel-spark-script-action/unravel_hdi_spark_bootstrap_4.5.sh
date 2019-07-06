@@ -763,6 +763,8 @@ function gen_sensor_properties() {
 cluster-type=hdi
 cluster-id=`echo $CLUSTER_ID`
 unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
+am-polling=$AM_POLLING
+enable-aa=$ENABLE_AA
 EOF
 }
 
@@ -825,14 +827,16 @@ function es_install() {
 
   UES_JAR_NAME="unravel-emrsensor-pack.zip"
   UESURL="http://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
+  UES_PATH="/usr/local/unravel_es"
   echo "GET $UESURL" |tee -a  $OUT_FILE
   wget -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
   RC=$?
   if [ $RC -eq 0 ]; then
-      sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  /usr/local/unravel_es
-      sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d /usr/local/unravel_es/
-      sudo chmod 755 /usr/local/unravel_es/dbin/*
-      sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} /usr/local/unravel_es
+      sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  ${UES_PATH}
+      [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
+      sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
+      sudo chmod 755 ${UES_PATH}/dbin/*
+      sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} ${UES_PATH}
   else
       echo "ERROR: Fetch of $UESURL failed, RC=$RC" |tee -a $OUT_FILE
       return 1
@@ -1471,6 +1475,8 @@ function install_usage() {
     echo "  --spark-version    installed spark version" | tee -a ${OUT_FILE}
     echo "  --spark-load-mode  sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
     echo "  --env              comma separated <key=value> env variables" | tee -a ${OUT_FILE}
+    echo "  --enable-polling   Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
+    echo "  --disable-aa       Disable Auto Action" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
@@ -1560,6 +1566,8 @@ function install() {
 
     DEPS_OK=0
     METRICS_FACTOR=1
+    ENABLE_AA=true
+    AM_POLLING=false
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
       DEPS_OK=1
@@ -1622,7 +1630,6 @@ function install() {
                 ;;
             "uninstall" | "--uninstall")
                 export UNINSTALL=True
-                shift
                 ;;
             "metrics-factor" | "--metrics-factor")
                 export METRICS_FACTOR=$1
@@ -1630,8 +1637,13 @@ function install() {
                 ;;
             "all" | "--all")
                 export ENABLE_ALL_SENSOR=True
-                shift
                 ;;
+            "enable-polling" | "--enable-polling")
+                export AM_POLLING=true
+                ;;
+            "disable-aa" | "--disable-aa")
+               export ENABLE_AA=false
+               ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
