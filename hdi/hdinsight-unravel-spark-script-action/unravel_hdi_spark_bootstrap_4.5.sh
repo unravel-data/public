@@ -833,10 +833,10 @@ function es_install() {
   RC=$?
   if [ $RC -eq 0 ]; then
       sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  ${UES_PATH}
-      [ -d "${$UES_PATH}/dlib" ] && rm -rf ${$UES_PATH}/dlib
+      [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
       sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
-      sudo chmod 755 ${$UES_PATH}/dbin/*
-      sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} ${$UES_PATH}
+      sudo chmod 755 ${UES_PATH}/dbin/*
+      sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} ${UES_PATH}
   else
       echo "ERROR: Fetch of $UESURL failed, RC=$RC" |tee -a $OUT_FILE
       return 1
