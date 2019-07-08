@@ -35,7 +35,6 @@ ver_comp () {
 
 RPM_URL="https://preview.unraveldata.com/img/unravel-4.2.7-Azure-latest.rpm"
 
-IS_ARM="${10}"
 if [ $# -ge 9 ]; then
  RPM_URL=$9
 fi
@@ -72,10 +71,10 @@ sleep 30
 
 
 # Prepare disk for unravel
-if [ "$IS_ARM" ]; then
+if [ -e "/dev/sdc" ]; then
     mkdir -p /srv
 
-    DATADISK=`/usr/bin/lsblk |grep 500G | awk '{print $1}'`
+    DATADISK=`/usr/bin/lsblk |grep sdc | awk '{print $1}'`
     echo $DATADISK > /tmp/datadisk
     echo "/dev/${DATADISK}1" > /tmp/dataprap
 
