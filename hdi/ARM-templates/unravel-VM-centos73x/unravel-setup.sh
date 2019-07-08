@@ -35,7 +35,8 @@ ver_comp () {
 
 RPM_URL="https://preview.unraveldata.com/img/unravel-4.2.7-Azure-latest.rpm"
 
-if [ $# -eq 9 ]; then
+IS_ARM="${10}"
+if [ $# -ge 9 ]; then
  RPM_URL=$9
 fi
 RPM_VER=$(echo ${RPM_URL} | grep -m 1 -o '[4-5].[0-9].[0-9]' | grep -m 1 '[4-5].[0-9].[0-9]')
@@ -71,23 +72,25 @@ sleep 30
 
 
 # Prepare disk for unravel
-mkdir -p /srv
+if [ "$IS_ARM" ]; then
+    mkdir -p /srv
 
-DATADISK=`/usr/bin/lsblk |grep 500G | awk '{print $1}'`
-echo $DATADISK > /tmp/datadisk
-echo "/dev/${DATADISK}1" > /tmp/dataprap
+    DATADISK=`/usr/bin/lsblk |grep 500G | awk '{print $1}'`
+    echo $DATADISK > /tmp/datadisk
+    echo "/dev/${DATADISK}1" > /tmp/dataprap
 
-echo "Partitioning Disk ${DATADISK}"
-echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/${DATADISK}
+    echo "Partitioning Disk ${DATADISK}"
+    echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/${DATADISK}
 
-DATAPRAP=`cat /tmp/dataprap`
-DDISK=`cat /tmp/datadisk`
-/usr/sbin/mkfs -t ext4 ${DATAPRAP}
+    DATAPRAP=`cat /tmp/dataprap`
+    DDISK=`cat /tmp/datadisk`
+    /usr/sbin/mkfs -t ext4 ${DATAPRAP}
 
-DISKUUID=`/usr/sbin/blkid |grep ext4 |grep $DDISK  | awk '{ print $2}' |sed -e 's/"//g'`
-echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
+    DISKUUID=`/usr/sbin/blkid |grep ext4 |grep $DDISK  | awk '{ print $2}' |sed -e 's/"//g'`
+    echo "${DISKUUID}    /srv   ext4 defaults  0 0" >> /etc/fstab
 
-/usr/bin/mount -a
+    /usr/bin/mount -a
+fi
 
 # install unravel rpm
 /usr/bin/rpm  -U $(basename $RPM_URL)
