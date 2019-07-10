@@ -54,9 +54,14 @@ DLKCLIROPATH=${8}
 
 
 # Prepare the VM for unravel rpm install
-/usr/bin/yum install -y ntp
-/usr/bin/yum install -y libaio
-/usr/bin/yum install -y lzop
+for package in "ntp" "libaio" "lzop"; do
+    rpm -qa | grep $package
+    if [ $? -eq 0 ]; then
+        echo "$package already installed"
+    else
+        /usr/bin/yum install -y $package
+    fi
+done
 /usr/bin/systemctl enable ntpd
 /usr/bin/systemctl start ntpd
 /usr/bin/systemctl disable firewalld
