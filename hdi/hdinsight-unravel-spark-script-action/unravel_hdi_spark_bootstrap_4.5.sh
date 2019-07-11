@@ -1478,7 +1478,7 @@ function install_usage() {
     echo "  --env               comma separated <key=value> env variables" | tee -a ${OUT_FILE}
     echo "  --enable-am-polling Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
     echo "  --disable-aa        Disable Auto Action" | tee -a ${OUT_FILE}
-    echo "  --hive-id-cache     " | tee -a ${OUT_FILE}
+    echo "  --hive-id-cache     Max # of MR job id cache for long running Hive job" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
