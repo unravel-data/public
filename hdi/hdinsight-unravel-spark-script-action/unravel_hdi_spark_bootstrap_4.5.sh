@@ -765,6 +765,7 @@ cluster-id=`echo $CLUSTER_ID`
 unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
+hive-id-cache=$HIVE_ID_CACHE
 EOF
 }
 
@@ -1466,17 +1467,18 @@ function spark_postinstall_check() {
 function install_usage() {
     echo "Usage: $(basename ${BASH_SOURCE[0]}) install <options>" | tee -a ${OUT_FILE}
     echo "Supported options:" | tee -a ${OUT_FILE}
-    echo "  -y                 unattended install" | tee -a ${OUT_FILE}
-    echo "  -v                 verbose mode" | tee -a ${OUT_FILE}
-    echo "  -h                 usage" | tee -a ${OUT_FILE}
-    echo "  --unravel-server   unravel_host:port (required)" | tee -a ${OUT_FILE}
-    echo "  --unravel-receiver unravel_restserver:port" | tee -a ${OUT_FILE}
-    echo "  --hive-version     installed hive version" | tee -a ${OUT_FILE}
-    echo "  --spark-version    installed spark version" | tee -a ${OUT_FILE}
-    echo "  --spark-load-mode  sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
-    echo "  --env              comma separated <key=value> env variables" | tee -a ${OUT_FILE}
-    echo "  --enable-polling   Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
-    echo "  --disable-aa       Disable Auto Action" | tee -a ${OUT_FILE}
+    echo "  -y                  unattended install" | tee -a ${OUT_FILE}
+    echo "  -v                  verbose mode" | tee -a ${OUT_FILE}
+    echo "  -h                  usage" | tee -a ${OUT_FILE}
+    echo "  --unravel-server    unravel_host:port (required)" | tee -a ${OUT_FILE}
+    echo "  --unravel-receiver  unravel_restserver:port" | tee -a ${OUT_FILE}
+    echo "  --hive-version      installed hive version" | tee -a ${OUT_FILE}
+    echo "  --spark-version     installed spark version" | tee -a ${OUT_FILE}
+    echo "  --spark-load-mode   sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
+    echo "  --env               comma separated <key=value> env variables" | tee -a ${OUT_FILE}
+    echo "  --enable-am-polling Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
+    echo "  --disable-aa        Disable Auto Action" | tee -a ${OUT_FILE}
+    echo "  --hive-id-cache     Max # of MR job id cache for long running Hive job" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
@@ -1568,6 +1570,7 @@ function install() {
     METRICS_FACTOR=1
     ENABLE_AA=true
     AM_POLLING=false
+    HIVE_ID_CACHE=1000
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
       DEPS_OK=1
@@ -1638,12 +1641,16 @@ function install() {
             "all" | "--all")
                 export ENABLE_ALL_SENSOR=True
                 ;;
-            "enable-polling" | "--enable-polling")
+            "enable-am-polling" | "--enable-am-polling")
                 export AM_POLLING=true
                 ;;
             "disable-aa" | "--disable-aa")
-               export ENABLE_AA=false
-               ;;
+                export ENABLE_AA=false
+                ;;
+             "hive-id-cache" | "--hive-id-cache")
+                export HIVE_ID_CACHE=$1
+                shift
+                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
