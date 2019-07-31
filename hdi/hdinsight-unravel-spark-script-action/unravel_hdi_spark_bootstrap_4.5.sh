@@ -769,6 +769,21 @@ hive-id-cache=$HIVE_ID_CACHE
 EOF
 }
 
+function gen_secure_properties() {
+if [ $UNRAVEL_ES_USER == "hdfs" ]; then
+    UNRAVEL_ES_USER=unravel
+    UNRAVEL_ES_GROUP=unravel
+fi
+id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
+setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
+ cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
+com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
+yarn.resourcemanager.webapp.username=$RM_USER
+yarn.resourcemanager.webapp.password=$RM_PASSWORD
+EOF
+}
+
 ###############################################################################################
 # Checks whether the Unravel MR sensor (unravel_es) has already been installed                #
 ###############################################################################################
@@ -819,6 +834,10 @@ function es_install() {
   fi
 
   # generate /etc/init.d/unravel_es
+  # For Secure Cluster create unravel.properties file
+  if [[ -e $KEYTAB_PATH ]] && [[ ! -z $KEYTAB_PRINCIPAL ]]; then
+    gen_secure_properties
+  fi
   get_sensor_initd
   # Note that /usr/local/unravel_es/dbin/unravel_emr_sensor.sh is now
   # packaged by the RPM and unzipped.
@@ -1478,7 +1497,12 @@ function install_usage() {
     echo "  --env               comma separated <key=value> env variables" | tee -a ${OUT_FILE}
     echo "  --enable-am-polling Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
     echo "  --disable-aa        Disable Auto Action" | tee -a ${OUT_FILE}
-    echo "  --hive-id-cache     Max # of MR job id cache for long running Hive job" | tee -a ${OUT_FILE}
+    echo "  --rm-userid         Yarn resource manager webui username" | tee -a ${OUT_FILE}
+    echo "  --rm-password       Yarn resource manager webui password" | tee -a ${OUT_FILE}
+    echo "  --user-id           User id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --group-id          Group id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --keytab-file       Path to the kerberos keytab file that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  --principal         Kerberos principal name that will be used to kinit" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
@@ -1571,6 +1595,13 @@ function install() {
     ENABLE_AA=true
     AM_POLLING=false
     HIVE_ID_CACHE=1000
+    UNRAVEL_ES_USER=hdfs
+    UNRAVEL_ES_GROUP=hadoop
+    RM_USER=a
+    RM_PASSWORD=a
+    KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
+    KEYTAB_PRINCIPAL='ambari-server-gdfbn@TEAMUNRAVELDATA.ONMICROSOFT.COM'
+
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
       DEPS_OK=1
@@ -1647,8 +1678,32 @@ function install() {
             "disable-aa" | "--disable-aa")
                 export ENABLE_AA=false
                 ;;
-             "hive-id-cache" | "--hive-id-cache")
+            "hive-id-cache" | "--hive-id-cache")
                 export HIVE_ID_CACHE=$1
+                shift
+                ;;
+            "--user-id")
+                export UNRAVEL_ES_USER=$1
+                shift
+                ;;
+            "--group-id")
+                export UNRAVEL_ES_GROUP=$1
+                shift
+                ;;
+            "--keytab-file")
+                export KEYTAB_PATH=$1
+                shift
+                ;;
+            "--principal")
+                export KEYTAB_PRINCIPAL=$1
+                shift
+                ;;
+            "--rm-userid")
+                export RM_USER=$1
+                shift
+                ;;
+            "--rm-password")
+                export RM_PASSWORD=$1
                 shift
                 ;;
             * )
