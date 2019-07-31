@@ -132,7 +132,12 @@ if [ $BLOBSTORACCT != "NONE" ] && [ $BLOBPRIACKEY != "NONE" ]; then
    echo "blob primary access key is ${BLOBPRIACKEY}"
    echo "blob secondary access key is ${BLOBSECACKEY}"
    echo "# Adding Blob Storage Account information, Update and uncomment following lines" >> ${UN_PROP_PATH}
-   # Blob storage properties for Unravel 4.5.x and newer
+   # Blob storage properties for Unravel 4.5.1 and newer
+   ver_comp $RPM_VER 4.5.1
+   if [[ $? -eq 1 ]]; then
+       echo "com.unraveldata.azure.storage.wasb.account-name.1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
+       echo "com.unraveldata.azure.storage.wasb.access-key.1=${BLOBPRIACKEY}" >> ${UN_PROP_PATH}
+   # Blob storage properties for Unravel 4.5.0 and newer
    ver_comp $RPM_VER 4.4.3
    if [[ $? -eq 1 ]]; then
        echo "com.unraveldata.hdinsight.storage-account.1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
@@ -158,11 +163,20 @@ if [ $DLKSTOREACCT != "NONE" ] && [ $DLKCLIENTAID != "NONE" ] && [ $DLKCLIENTKEY
    echo "Data Lake Access Token is ${DLKCLITOKEPT}"
    echo "Data Lake Client Root Path is ${DLKCLIROPATH}"
    echo "# Adding Data Lake Account information, Update and uncomment following lines" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.adl.accountFQDN=${DLKSTOREACCT}.azuredatalakestore.net" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.adl.clientId=${DLKCLIENTAID}" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.adl.clientKey=${DLKCLIENTKEY}" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.adl.accessTokenEndpoint=${DLKCLITOKEPT}" >> ${UN_PROP_PATH}
-   echo "com.unraveldata.adl.clientRootPath=${DLKCLIROPATH}" >> ${UN_PROP_PATH}
+   ver_comp $RPM_VER 4.5.1
+   if [[ $? -eq 1 ]]; then
+        echo "com.unraveldata.azure.storage.adl.account-name.1=${DLKSTOREACCT}.azuredatalakestore.net" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.azure.storage.adl.client-id.1=${DLKCLIENTAID}" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.azure.storage.adl.client-key.1=${DLKCLIENTKEY}" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.azure.storage.adl.access-token-endpoint.1=${DLKCLITOKEPT}" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.azure.storage.adl.client-root-path.1=${DLKCLIROPATH}" >> ${UN_PROP_PATH}
+   else
+        echo "com.unraveldata.adl.accountFQDN=${DLKSTOREACCT}.azuredatalakestore.net" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.adl.clientId=${DLKCLIENTAID}" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.adl.clientKey=${DLKCLIENTKEY}" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.adl.accessTokenEndpoint=${DLKCLITOKEPT}" >> ${UN_PROP_PATH}
+        echo "com.unraveldata.adl.clientRootPath=${DLKCLIROPATH}" >> ${UN_PROP_PATH}
+   fi
 
 else
   echo "One or more of your data lake storge parameter is invalid, please check your parameter file"
