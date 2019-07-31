@@ -135,7 +135,7 @@ if [ $BLOBSTORACCT != "NONE" ] && [ $BLOBPRIACKEY != "NONE" ]; then
    # Blob storage properties for Unravel 4.5.1 and newer
    ver_comp $RPM_VER 4.5.1
    if [[ $? -eq 1 ]]; then
-       echo "com.unraveldata.azure.storage.wasb.account-name.1=fs.azure.account.key.${BLOBSTORACCT}.blob.core.windows.net" >> ${UN_PROP_PATH}
+       echo "com.unraveldata.azure.storage.wasb.account-name.1=${BLOBSTORACCT}" >> ${UN_PROP_PATH}
        echo "com.unraveldata.azure.storage.wasb.access-key.1=${BLOBPRIACKEY}" >> ${UN_PROP_PATH}
    # Blob storage properties for Unravel 4.5.0 and newer
    ver_comp $RPM_VER 4.4.3
