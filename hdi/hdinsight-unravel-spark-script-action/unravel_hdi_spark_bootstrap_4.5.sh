@@ -782,7 +782,7 @@ export UNRAVEL_CTL=/usr/local/unravel_es/etc/unravel_ctl
 if [ $UNRAVEL_ES_USER == 'hdfs' ] && [ ! -e $UNRAVEL_CTL ]; then
     UNRAVEL_ES_USER=unravel
     UNRAVEL_ES_GROUP=unravel
-elseif [ $UNRAVEL_ES_USER != 'hdfs' ]
+elif [ $UNRAVEL_ES_USER != 'hdfs' ]; then
     cat <<EOF > $UNRAVEL_CTL
 UNRAVEL_ES_USER=$UNRAVEL_ES_USER
 UNRAVEL_ES_GROUP=$UNRAVEL_ES_USER
