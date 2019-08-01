@@ -659,6 +659,11 @@ function get_sensor_initd() {
 DAEMON_NAME="unravel_es"
 PID_FILE="${TMP_DIR}/\${DAEMON_NAME}.pid"
 OUT_LOG="${TMP_DIR}/\${DAEMON_NAME}.out"
+UNRAVEL_ES_USER=${UNRAVEL_ES_USER}
+if [ -e /usr/local/unravel_es/etc/unravel_ctl ]; then
+    source /usr/local/unravel_es/etc/unravel_ctl
+fi
+
 
 function get_pid {
   cat \$PID_FILE
@@ -673,7 +678,7 @@ function start {
     echo "\$DAEMON_NAME already started"
   else
     echo "Starting \$DAEMON_NAME..."
-    su - ${UNRAVEL_ES_USER} -c bash -c "cd /usr/local/\${DAEMON_NAME}; ./dbin/unravel_emr_sensor.sh" >\$OUT_LOG 2>&1 &
+    su - \${UNRAVEL_ES_USER} -c bash -c "cd /usr/local/\${DAEMON_NAME}; ./dbin/unravel_emr_sensor.sh" >\$OUT_LOG 2>&1 &
     echo \$! > \$PID_FILE
     disown %1
     if ! is_running ; then
@@ -691,7 +696,7 @@ function stop {
     sleep 1
     # Search for any process that launched the shell script or the jar.
     # So keep this backward compatible with Unravel 4.4 version.
-    PIDS=\$(ps -U ${UNRAVEL_ES_USER} -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep | awk '{ print \$2 }' )
+    PIDS=\$(ps -U \${UNRAVEL_ES_USER} -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep | awk '{ print \$2 }' )
     [ "\$PIDS" ] && kill \$PIDS
     for i in {1..10}
     do
@@ -769,19 +774,35 @@ hive-id-cache=$HIVE_ID_CACHE
 EOF
 }
 
+###############################################################################################
+# Generating unravel.properties file with kerberos configurations                             #
+###############################################################################################
 function gen_secure_properties() {
-if [ $UNRAVEL_ES_USER == "hdfs" ]; then
+export UNRAVEL_CTL=/usr/local/unravel_es/etc/unravel_ctl
+if [ $UNRAVEL_ES_USER == 'hdfs' ] && [ ! -e $UNRAVEL_CTL ]; then
     UNRAVEL_ES_USER=unravel
     UNRAVEL_ES_GROUP=unravel
+elseif [ $UNRAVEL_ES_USER != 'hdfs' ]
+    cat <<EOF > $UNRAVEL_CTL
+UNRAVEL_ES_USER=$UNRAVEL_ES_USER
+UNRAVEL_ES_GROUP=$UNRAVEL_ES_USER
+EOF
 fi
+
 id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
 setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
- cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+if [ ! -e /usr/local/unravel_es/etc/unravel.properties ]; then
+    cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
 com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
 com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
 yarn.resourcemanager.webapp.username=$RM_USER
 yarn.resourcemanager.webapp.password=$RM_PASSWORD
 EOF
+    echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
+    echo "Kerberos Keytab: $KEYTAB_PATH"
+else
+    cat /usr/local/unravel_es/etc/unravel.properties
+fi
 }
 
 ###############################################################################################
@@ -836,6 +857,7 @@ function es_install() {
   # generate /etc/init.d/unravel_es
   # For Secure Cluster create unravel.properties file
   if [[ -e $KEYTAB_PATH ]] && [[ ! -z $KEYTAB_PRINCIPAL ]]; then
+    echo "Setting up Unravel properties for secure cluster..."
     gen_secure_properties
   fi
   get_sensor_initd
@@ -856,7 +878,7 @@ function es_install() {
       [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
       sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
       sudo chmod 755 ${UES_PATH}/dbin/*
-      sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} ${UES_PATH}
+      sudo chown -R "${UNRAVEL_ES_USER}":"${UNRAVEL_ES_GROUP}" ${UES_PATH}
   else
       echo "ERROR: Fetch of $UESURL failed, RC=$RC" |tee -a $OUT_FILE
       return 1
@@ -1600,7 +1622,6 @@ function install() {
     RM_USER=a
     RM_PASSWORD=a
     KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
-    KEYTAB_PRINCIPAL='ambari-server-gdfbn@TEAMUNRAVELDATA.ONMICROSOFT.COM'
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1716,6 +1737,12 @@ function install() {
 
     # detect the cluster and settings
     isFunction cluster_detect && cluster_detect
+
+    # construct default principal name
+    if [ -z $KEYTAB_PRINCIPAL ]; then
+        DEFAULT_REALM=`cat /etc/krb5.conf | grep default_realm | awk '{ print $3 }'`
+        KEYTAB_PRINCIPAL="ambari-server-$CLUSTER_ID@$DEFAULT_REALM"
+    fi
 
     # dump the contents of env variables and shell settings
     debug_dump
