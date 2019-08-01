@@ -792,6 +792,7 @@ fi
 id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
 setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
 if [ ! -e /usr/local/unravel_es/etc/unravel.properties ]; then
+    mkdir -p /usr/local/unravel_es/etc
     cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
 com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
 com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
