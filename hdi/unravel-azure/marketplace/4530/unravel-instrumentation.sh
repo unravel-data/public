@@ -24,10 +24,10 @@ echo "Unravel Instrumentation script: $SCRIPT_PATH"
 if [ $# -eq 1 ] && [ "$1" = "uninstall" ];then
    echo -e "\nUninstall Unravel\n"
 #   python /usr/local/unravel/hdi_onpremises_setup.py -uninstall 2>&1
-   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER -uninstall
+   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER -uninstall --restart-am
 else
    echo -e "\nInstall Unravel\n"
 #   nohup python /usr/local/unravel/hdi_onpremises_setup.py > $TMP_DIR/hdi_onpremises_setup.log 2>$TMP_DIR/hdi_onpremises_setup.err &
-   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER -uninstall
+   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
    /usr/local/unravel/init_scripts/unravel_all.sh restart
 fi

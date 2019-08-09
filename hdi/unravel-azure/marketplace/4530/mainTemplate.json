@@ -1,229 +1,245 @@
-{   "apiVersion": "2018-02-01",
-    "name": "pid-3cbfd624-935e-458e-886e-840d2c3bf283", 
-    "type": "Microsoft.Resources/deployments",
-    "properties": {
-        "mode": "Incremental",
-        "template": 
 {
-  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "clusterName": {
-      "type": "string",
-      "metadata": {
-        "description": "The name of the HDInsight cluster that associate to this edge node."
-      }
-    },
-
-   "edgeNodeSize": {
-        "type": "string",
-        "metadata": {
+  "apiVersion": "2018-02-01",
+  "name": "pid-3cbfd624-935e-458e-886e-840d2c3bf283",
+  "type": "Microsoft.Resources/deployments",
+  "properties": {
+    "mode": "Incremental",
+    "template": {
+      "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "clusterName": {
+          "type": "string",
+          "metadata": {
+            "description": "The name of the HDInsight cluster that associate to this edge node."
+          }
+        },
+        "edgeNodeSize": {
+          "type": "string",
+          "metadata": {
             "description": "Size of the edge node that hosts the application"
-         },
-         "defaultValue": "Standard_D13_V2",
-         "allowedValues": [
+          },
+          "defaultValue": "Standard_D13_V2",
+          "allowedValues": [
+            "Standard_E8s_v3",
+            "Standard_E16s_v3",
+            "Standard_E20s_v3",
+            "Standard_E32s_v3",
+            "Standard_E8_v3",
+            "Standard_E16_v3",
+            "Standard_E20_v3",
+            "Standard_E32_v3",
             "Standard_D13_V2",
             "Standard_D14_V2",
             "Standard_D15_V2",
             "Standard_D16_V3",
             "Standard_D32_V3"
           ]
-     },
-
-    "galleryPackageIdentity": {
-         "type": "string",
-         "metadata": {
-             "description": "Unraveldata APM for HDInsight Spark2 cluster."
+        },
+        "galleryPackageIdentity": {
+          "type": "string",
+          "metadata": {
+            "description": "Unraveldata APM for HDInsight Spark2 cluster."
           },
           "defaultValue": "Unraveldata-APM"
-     },
-
-     "clusterHeadNodeSize": {
-         "type": "string",
+        },
+        "clusterHeadNodeSize": {
+          "type": "string",
           "defaultValue": "Standard_D12_v2",
           "allowedValues": [
-             "Standard_D3_v2",
-             "Standard_D4_v2",
-             "Standard_D5_v2",
-             "Standard_D11_v2",
-             "Standard_D12_v2",
-             "Standard_D13_v2",
-             "Standard_D14_v2",
-             "Standard_D15_v2",
-             "Standard_D3",
-             "Standard_D4",
-             "Standard_D5"
+            "Standard_D3_v2",
+            "Standard_D4_v2",
+            "Standard_D5_v2",
+            "Standard_D11_v2",
+            "Standard_D12_v2",
+            "Standard_D13_v2",
+            "Standard_D14_v2",
+            "Standard_D15_v2",
+            "Standard_D3",
+            "Standard_D4",
+            "Standard_D5"
           ],
           "metadata": {
-              "description": "The size of the head nodes in the HDInsight Spark cluster."
+            "description": "The size of the head nodes in the HDInsight Spark cluster."
           }
-      },
-      "clusterWorkerNodeSize": {
+        },
+        "clusterWorkerNodeSize": {
           "type": "string",
           "defaultValue": "Standard_D13_v2",
           "allowedValues": [
-              "Standard_D1_v2",
-              "Standard_D2_v2",
-              "Standard_D3_v2",
-              "Standard_D4_v2",
-              "Standard_D5_v2",
-              "Standard_D12_v2",
-              "Standard_D13_v2",
-              "Standard_D14_v2",
-              "Standard_D15_v2",
-              "Standard_D1",
-              "Standard_D2",
-              "Standard_D3",
-              "Standard_D4",
-              "Standard_D5"
+            "Standard_D1_v2",
+            "Standard_D2_v2",
+            "Standard_D3_v2",
+            "Standard_D4_v2",
+            "Standard_D5_v2",
+            "Standard_D12_v2",
+            "Standard_D13_v2",
+            "Standard_D14_v2",
+            "Standard_D15_v2",
+            "Standard_D1",
+            "Standard_D2",
+            "Standard_D3",
+            "Standard_D4",
+            "Standard_D5"
           ],
           "metadata": {
-              "description": "The size of the head nodes in the HDInsight Spark cluster."
+            "description": "The size of the head nodes in the HDInsight Spark cluster."
           }
-      },
-
-     "location": {
-         "type": "string",
-         "defaultValue": "East US",
-         "allowedValues": [
-             "East US",
-             "East US 2",
-             "North Central US",
-             "South Central US",
-             "West US",
-             "North Europe",
-             "West Europe",
-             "East Asia",
-             "Southeast Asia",
-             "Japan East",
-             "Japan West",
-             "Australia East",
-             "Australia Southeast"
-         ],
-         "metadata": {
-             "description": "The location where all azure resources will be deployed."
-         }
-      },
-     "clusterType": {
-         "type": "string",
+        },
+        "location": {
+          "type": "string",
+          "defaultValue": "East US",
+          "allowedValues": [
+            "East US",
+            "East US 2",
+            "North Central US",
+            "South Central US",
+            "West US",
+            "North Europe",
+            "West Europe",
+            "East Asia",
+            "Southeast Asia",
+            "Japan East",
+            "Japan West",
+            "Australia East",
+            "Australia Southeast"
+          ],
+          "metadata": {
+            "description": "The location where all azure resources will be deployed."
+          }
+        },
+        "clusterType": {
+          "type": "string",
           "defaultValue": "spark",
           "allowedValues": [
-              "spark",
-              "hbase",
-              "kafka",
-              "hadoop"
+            "spark",
+            "hbase",
+            "kafka",
+            "hadoop"
           ],
           "metadata": {
-             "description": "The type of the HDInsight cluster to create."
+            "description": "The type of the HDInsight cluster to create."
           }
-      },
-      "sparkVersion": {
+        },
+        "sparkVersion": {
           "type": "string",
           "metadata": {
-              "description": "The Spark version to be installed on the cluster."
+            "description": "The Spark version to be installed on the cluster."
           },
           "allowedValues": [
-              "2.1",
-              "2.2",
-              "2,3"
+            "2.1",
+            "2.2",
+            "2,3"
           ],
           "defaultValue": "2.3"
-      },
-
-      "clusterWorkerNodeCount": {
+        },
+        "clusterWorkerNodeCount": {
           "type": "int",
           "defaultValue": 3,
           "metadata": {
-              "description": "The number of nodes in the HDInsight cluster."
+            "description": "The number of nodes in the HDInsight cluster."
           }
+        },
+        "scriptActionUri1": {
+          "type": "string",
+          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-edgenode.sh",
+          "metadata": {
+            "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+          }
+        },
+        "scriptActionUri2": {
+          "type": "string",
+          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/hdi_premises_sensor_deploy.sh",
+          "metadata": {
+            "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+          }
+        },
+        "scriptActionUri3": {
+          "type": "string",
+          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-instrumentation.sh",
+          "metadata": {
+            "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
+          }
+        }
       },
-
-    "scriptActionUri1": {
-      "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-edgenode.sh",
-      "metadata": {
-        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
-      }
-    },
-    "scriptActionUri2": {
-      "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/hdi_premises_sensor_deploy.sh",
-      "metadata": {
-        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
-      }
-    },
-    "scriptActionUri3": {
-      "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-instrumentation.sh",
-      "metadata": {
-        "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
-      }
-    }
-
-  },
-  "variables": {
-    "applicationName1": "unravel-install",
-    "applicationName2": "sensors-deploy",
-    "applicationName3": "instrumenation"
-  },
-  "resources": [
-    {
-        "name": "[concat(parameters('clusterName'),'/', 'unravel-edgenode')]",
-        "type": "Microsoft.HDInsight/clusters/applications",
-        "apiVersion": "2015-03-01-preview",
-        "dependsOn": [],
-        "properties": {
+      "variables": {
+        "applicationName1": "unravel-install",
+        "applicationName2": "sensors-deploy",
+        "applicationName3": "instrumenation"
+      },
+      "resources": [
+        {
+          "name": "[concat(parameters('clusterName'),'/', 'unravel-edgenode')]",
+          "type": "Microsoft.HDInsight/clusters/applications",
+          "apiVersion": "2015-03-01-preview",
+          "dependsOn": [],
+          "properties": {
             "marketPlaceIdentifier": "EmptyNode",
             "computeProfile": {
-                "roles": [{
-                    "name": "edgenode",
-                    "targetInstanceCount": 1,
-                    "hardwareProfile": {
-                        "vmSize": "[parameters('edgeNodeSize')]"
-                    }
-                }]
+              "roles": [
+                {
+                  "name": "edgenode",
+                  "targetInstanceCount": 1,
+                  "hardwareProfile": {
+                    "vmSize": "[parameters('edgeNodeSize')]"
+                  }
+                }
+              ]
             },
-            "installScriptActions": [{
+            "installScriptActions": [
+              {
                 "name": "[concat('emptynode','-' ,variables('applicationName1'))]",
                 "uri": "[parameters('scriptActionUri1')]",
                 "parameters": "",
-                "roles": ["edgenode"]
-                },
-                { "name": "[concat('unravel','-' ,variables('applicationName2'))]",
-                  "uri": "[parameters('scriptActionUri2')]",
-                  "isPersisted": true,
-                  "parameters": "",
-                  "roles": [
-                             "edgenode",
-                             "workernode",
-                             "headnode"
-                           ]
-                },
-                { "name": "[concat('unravel','-' ,variables('applicationName3'))]",
-                  "uri": "[parameters('scriptActionUri3')]",
-                  "parameters": "",
-                  "roles": ["edgenode"]
-            }],
-            "uninstallScriptActions": [{
+                "roles": [
+                  "edgenode"
+                ]
+              },
+              {
+                "name": "[concat('unravel','-' ,variables('applicationName2'))]",
+                "uri": "[parameters('scriptActionUri2')]",
+                "isPersisted": true,
+                "parameters": "",
+                "roles": [
+                  "edgenode",
+                  "workernode",
+                  "headnode"
+                ]
+              },
+              {
+                "name": "[concat('unravel','-' ,variables('applicationName3'))]",
+                "uri": "[parameters('scriptActionUri3')]",
+                "parameters": "",
+                "roles": [
+                  "edgenode"
+                ]
+              }
+            ],
+            "uninstallScriptActions": [
+              {
                 "name": "[concat('unravel','-' ,'rollback' ,'-', variables('applicationName3'))]",
                 "uri": "[parameters('scriptActionUri3')]",
                 "parameters": "uninstall",
-                "roles": ["edgenode"],
+                "roles": [
+                  "edgenode"
+                ],
                 "isPersisted": false
-            }],
-
-            "httpsEndpoints": [{
-                 "subDomainSuffix": "unr",
-                 "destinationPort": 3000,
-                 "disableGatewayAuth": true,
-                 "accessModes": ["webpage"]
-            }],
-
-
+              }
+            ],
+            "httpsEndpoints": [
+              {
+                "subDomainSuffix": "unr",
+                "destinationPort": 3000,
+                "disableGatewayAuth": true,
+                "accessModes": [
+                  "webpage"
+                ]
+              }
+            ],
             "applicationType": "CustomApplication"
+          }
         }
+      ]
     }
-  ]
-}
-}
+  }
 }
