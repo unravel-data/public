@@ -16,7 +16,7 @@ SENSOR_FILE_NAME="unravel-sensor-4530.tar.gz"
 SENSOR_FILE_URL="https://unravelstorage01.blob.core.windows.net/unravel-app-blob-2018-04-13/$SENSOR_FILE_NAME"
 
 echo -e "\nDownloading $SENSOR_FILE_NAME\n"
-wget -O $TMP_DIR/unravel-sensor.tar.gz $SENSOR_FILE_URL
+wget -O $TMP_DIR/$SENSOR_FILE_NAME $SENSOR_FILE_URL
 
 if [ $? -eq 0 ];then
     echo -e "\n$SENSOR_FILE_NAME Downloaded\n"
