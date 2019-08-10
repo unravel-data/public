@@ -30,4 +30,5 @@ else
 #   nohup python /usr/local/unravel/hdi_onpremises_setup.py > $TMP_DIR/hdi_onpremises_setup.log 2>$TMP_DIR/hdi_onpremises_setup.err &
    python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
    /usr/local/unravel/init_scripts/unravel_all.sh restart
+   exit 0
 fi
