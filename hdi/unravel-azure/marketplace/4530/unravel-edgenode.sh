@@ -49,6 +49,7 @@ echo "MySQL unravel password = $MYSQLUNRAVELPASS"
 
 sed -i -e "s/unravel.jdbc.password=.*/unravel.jdbc.password=${MYSQLUNRAVELPASS}/g" /usr/local/unravel/etc/unravel.properties
 sed -i -e "s/unravel.jdbc.url=.*/unravel.jdbc.url=jdbc:mariadb:\/\/127.0.0.1:3306\/unravel_mysql_prod/g" /usr/local/unravel/etc/unravel.properties
+sed -ie "s/^deb/#deb/g" /etc/apt/sources.list.d/hdp-utils-gpl.list
 
 ## Install mysql
 dpkg --configure -a
