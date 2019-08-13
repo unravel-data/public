@@ -49,7 +49,7 @@ echo "MySQL unravel password = $MYSQLUNRAVELPASS"
 
 sed -i -e "s/unravel.jdbc.password=.*/unravel.jdbc.password=${MYSQLUNRAVELPASS}/g" /usr/local/unravel/etc/unravel.properties
 sed -i -e "s/unravel.jdbc.url=.*/unravel.jdbc.url=jdbc:mariadb:\/\/127.0.0.1:3306\/unravel_mysql_prod/g" /usr/local/unravel/etc/unravel.properties
-sed -ie "s/^deb/#deb/g" /etc/apt/sources.list.d/hdp-utils-gpl.list
+sed -i -e "s/^deb/#deb/g" /etc/apt/sources.list.d/hdp-utils-gpl.list
 
 ## Install mysql
 dpkg --configure -a
@@ -62,6 +62,8 @@ service mysql start
 echo "create database unravel_mysql_prod DEFAULT CHARACTER SET utf8; grant all on unravel_mysql_prod.* TO 'unravel'@'%' IDENTIFIED BY '$MYSQLUNRAVELPASS'; use unravel_mysql_prod; source /usr/local/unravel/mysql_scripts/20170920015500.sql; source /usr/local/unravel/mysql_scripts/20171008153000.sql; source /usr/local/unravel/mysql_scripts/20171202224307.sql; source /usr/local/unravel/mysql_scripts/20180118103500.sql;" | mysql -u root -p$MYSQLROOTPASS
 
 echo "use unravel_mysql_prod; INSERT  IGNORE INTO \`users\` (\`id\`, \`email\`, \`encrypted_password\`, \`reset_password_token\`, \`reset_password_sent_at\`, \`remember_created_at\`, \`sign_in_count\`, \`current_sign_in_at\`, \`last_sign_in_at\`, \`current_sign_in_ip\`, \`last_sign_in_ip\`, \`created_at\`, \`updated_at\`, \`login\`, \`uid\`, \`authentication_token\`) VALUES (1,'','\$2a\$10\$.8bk4e/5UgD.A5ok13lKvOiVdzh.IMRbwrN0pJbvFZvXZHTitl5Di',NULL,NULL,NULL,1,now(),now(),'127.0.0.1','127.0.0.1',now(),now(),'admin',NULL,NULL); COMMIT;" | mysql -u root -p$MYSQLROOTPASS
+
+sed -i -e "s/^#deb/deb/g" /etc/apt/sources.list.d/hdp-utils-gpl.list
 
 sudo /usr/local/unravel/dbin/db_schema_upgrade.sh
 
