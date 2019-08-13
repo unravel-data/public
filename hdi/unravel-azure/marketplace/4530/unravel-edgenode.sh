@@ -52,6 +52,7 @@ sed -i -e "s/unravel.jdbc.url=.*/unravel.jdbc.url=jdbc:mariadb:\/\/127.0.0.1:330
 sed -i -e "s/^deb/#deb/g" /etc/apt/sources.list.d/hdp-utils-gpl.list
 
 ## Install mysql
+apt-get update
 dpkg --configure -a
 echo "mysql-server mysql-server/root_password password $MYSQLROOTPASS" | debconf-set-selections
 echo "mysql-server mysql-server/root_password_again password $MYSQLROOTPASS" | debconf-set-selections
