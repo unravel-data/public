@@ -1784,8 +1784,10 @@ function install() {
 
 function  is_secure() {
     result=$(curl -u $AMBARI_USR:"$AMBARI_PWD" http://headnodehost:$AMBARI_PORT/api/v1/clusters/$CLUSTER_ID | \
-    python -c 'import sys,json; print(json.load(sys.stdin)["Clusters"]["security_type"])')
-    if [ result == 'KERBEROS' ]; then
+    python -c 'import sys,json; print(json.load(sys.stdin)["Clusters"]["security_type"].strip())')
+    echo "Checking Security Type"
+    echo "Security Type: $result"
+    if [ $result == 'KERBEROS' ]; then
       return 0
     else
       return 1
