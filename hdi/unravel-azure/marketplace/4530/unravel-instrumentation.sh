@@ -23,11 +23,11 @@ echo "Unravel Instrumentation script: $SCRIPT_PATH"
 
 if [ $# -eq 1 ] && [ "$1" = "uninstall" ];then
    echo -e "\nUninstall Unravel\n"
-#   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER -uninstall --restart-am
+   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER -uninstall --restart-am
+    exit 0
 else
    echo -e "\nInstall Unravel\n"
-#   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
-#   /usr/local/unravel/init_scripts/unravel_all.sh restart
+   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
 fi
 
 function getProp() {
@@ -67,3 +67,6 @@ if [[ -n $SERVER_PORT ]] && [[ -n $JMX_PORT ]]; then
 fi
 
 # Hbase configurations
+
+/usr/local/unravel/init_scripts/unravel_all.sh restart
+exit 0
