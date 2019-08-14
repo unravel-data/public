@@ -18,6 +18,7 @@ SPARK_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+
 export SPARK_MAJOR_VERSION=2
 SPARK2_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)')
 echo "Spark version: $SPARK_VER"
+echo "Spark2 version: $SPARK2_VER"
 AMBARI_USER=$(python -c 'import hdinsight_common.Constants as Constants; print(Constants.AMBARI_WATCHDOG_USERNAME)')
 AMBARI_PASS=$(python -c 'import hdinsight_common.Constants as Constants, hdinsight_common.ClusterManifestParser as ClusterManifestParser, base64; print(base64.b64decode(ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password))' 2>/dev/null)
 CLUSTER_NAME=$(curl -u $AMBARI_USER:"$AMBARI_PASS" http://headnodehost:8080/api/v1/clusters 2>/dev/null | python -c "import json,sys; print(json.load(sys.stdin)['items'][0]['Clusters']['cluster_name'])")
