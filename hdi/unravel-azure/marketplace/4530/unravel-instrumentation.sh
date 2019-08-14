@@ -46,6 +46,30 @@ EOF
     RESULT=$(curl -u "$AMBARI_USER":"$AMBARI_PASS" "http://headnodehost:8080/api/v1/clusters/$CLUSTER_NAME/host_components?HostRoles/component_name=KAFKA_BROKER" 2>/dev/null | python /tmp/unravel/parse_brokers.py)
 }
 
+function getRegionList() {
+    cat <<EOF > "/tmp/unravel/parse_regions.py"
+import json,sys
+region_server_list = list()
+server_items = json.load(sys.stdin)['items']
+for item in server_items:
+  region_server_list.append("{0}:{1}".format(item['HostRoles']['host_name'], '$RESION_SERVER_PORT'))
+print('com.unraveldata.$CLUSTER_NAME.node.http.apis=={0}'.format(','.join(region_server_list)))
+EOF
+  RESULT=$(curl -u "$AMBARI_USER":"$AMBARI_PASS" "http://headnodehost:8080/api/v1/clusters/$CLUSTER_NAME/host_components?HostRoles/component_name=HBASE_REGIONSERVER" 2>/dev/null | python /tmp/unravel/parse_regions.py)
+}
+
+function getHbaseMaster() {
+  cat <<EOF > "/tmp/unravel/parse_hbase_master.py"
+import json,sys
+hbase_master = list()
+master_items = json.load(sys.stdin)['items']
+for item in master_items:
+  if item['metrics']['hbase']['master']['master']:
+    print(item['HostRoles']['host_name'])
+EOF
+  RESULT=$(curl -u "$AMBARI_USER":"$AMBARI_PASS" "http://headnodehost:8080/api/v1/clusters/$CLUSTER_NAME/host_components?HostRoles/component_name=HBASE_MASTER&fields=metrics/hbase/master/IsActiveMaster" 2>/dev/null | python /tmp/unravel/parse_hbase_master.py)
+}
+
 # Kafka configurations
 getProp listeners kafka-broker
 SERVER_PORT=$(echo $PROP_VAL | awk -F':' '{print $3}')
@@ -60,15 +84,24 @@ if [[ -n $SERVER_PORT ]] && [[ -n $JMX_PORT ]]; then
 fi
 
 # Hbase configurations
-getProp content hbase-env
-if [ $? -eq 0 ]; then
+getProp hbase.regionserver.info.port hbase-site
+RESION_SERVER_PORT=$PROP_VAL
+getProp hbase.master.info.port hbase-site
+MASTER_PORT=$PROP_VAL
+
+if [[ -n $RESION_SERVER_PORT ]] && [[ -n $MASTER_PORT ]]; then
   CLUSTER_TYPE='hbase'
   echo "Adding Hbase configurations..."
+#  echo "com.unraveldata.hbase.source.type=JMX" >> $UNRAVEL_PROP
+#  getRegionList
+#  echo "$RESULT" >> $UNRAVEL_PROP
+#  echo "com.unraveldata.$CLUSTER_NAME.node.http.apis=" >> $UNRAVEL_PROP
   echo "com.unraveldata.hbase.source.type=AMBARI" >> $UNRAVEL_PROP
   echo "com.unraveldata.hbase.rest.url=http://headnodehost:8080" >> $UNRAVEL_PROP
   echo "com.unraveldata.hbase.rest.user=$AMBARI_USER" >> $UNRAVEL_PROP
   echo "com.unraveldata.hbase.rest.pwd=$AMBARI_PASS" >> $UNRAVEL_PROP
   echo "com.unraveldata.hbase.clusters=$CLUSTER_NAME" >> $UNRAVEL_PROP
+  echo "com.unraveldata.hbase.rest.ssl.enabled=False" >> $UNRAVEL_PROP
 fi
 
 if [ $# -eq 1 ] && [ "$1" = "uninstall" ];then
