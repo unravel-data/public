@@ -15,6 +15,8 @@ fi
 SCRIPT_PATH="/usr/local/unravel/hdi_onpremises_setup.py"
 SCRIPT_PATH="/usr/local/unravel/install_bin/cluster-setup-scripts/unravel_hdp_setup.py"
 SPARK_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)')
+export SPARK_MAJOR_VERSION=2
+SPARK2_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)')
 echo "Spark version: $SPARK_VER"
 AMBARI_USER=$(python -c 'import hdinsight_common.Constants as Constants; print(Constants.AMBARI_WATCHDOG_USERNAME)')
 AMBARI_PASS=$(python -c 'import hdinsight_common.Constants as Constants, hdinsight_common.ClusterManifestParser as ClusterManifestParser, base64; print(base64.b64decode(ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password))' 2>/dev/null)
@@ -107,12 +109,12 @@ fi
 
 if [ $# -eq 1 ] && [ "$1" = "uninstall" ];then
    echo -e "\nUninstall Unravel\n"
-   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER -uninstall --restart-am
+   python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER,$SPARK2_VER -uninstall --restart-am
 else
    echo -e "\nInstall Unravel\n"
    if [ $CLUSTER_TYPE == 'spark' ] || [ $CLUSTER_TYPE == 'hbase' ];then
      echo "Running configs script"
-     python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
+     python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER,$SPARK2_VER --restart-am
    fi
    /usr/local/unravel/init_scripts/unravel_all.sh restart
    exit 0
