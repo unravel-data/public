@@ -111,8 +111,8 @@ else
    echo -e "\nInstall Unravel\n"
    if [ $CLUSTER_TYPE == 'spark' ] || [ $CLUSTER_TYPE == 'hbase' ];then
      echo "Running configs script"
-    python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
+     python $SCRIPT_PATH --ambari-server headnodehost --ambari-user $AMBARI_USER --ambari-password $AMBARI_PASS --spark-version $SPARK_VER --restart-am
    fi
-#   /usr/local/unravel/init_scripts/unravel_all.sh restart
+   /usr/local/unravel/init_scripts/unravel_all.sh restart
    exit 0
 fi
