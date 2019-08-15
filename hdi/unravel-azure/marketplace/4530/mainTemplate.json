@@ -138,21 +138,21 @@
         },
         "scriptActionUri1": {
           "type": "string",
-          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-edgenode.sh",
+          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/marketplace/4530/unravel-edgenode.sh",
           "metadata": {
             "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
           }
         },
         "scriptActionUri2": {
           "type": "string",
-          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/hdi_premises_sensor_deploy.sh",
+          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/marketplace/4530/hdi_premises_sensor_deploy.sh",
           "metadata": {
             "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
           }
         },
         "scriptActionUri3": {
           "type": "string",
-          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/scripts/unravel-instrumentation.sh",
+          "defaultValue": "https://raw.githubusercontent.com/unravel-data/public/master/hdi/unravel-azure/marketplace/4530/unravel-instrumentation.sh",
           "metadata": {
             "description": "A public http(s) uri that points to a script action which will set an environment variable on each node."
           }
