@@ -659,6 +659,11 @@ function get_sensor_initd() {
 DAEMON_NAME="unravel_es"
 PID_FILE="${TMP_DIR}/\${DAEMON_NAME}.pid"
 OUT_LOG="${TMP_DIR}/\${DAEMON_NAME}.out"
+UNRAVEL_ES_USER=${UNRAVEL_ES_USER}
+if [ -e /usr/local/unravel_es/etc/unravel_ctl ]; then
+    source /usr/local/unravel_es/etc/unravel_ctl
+fi
+
 
 function get_pid {
   cat \$PID_FILE
@@ -673,7 +678,7 @@ function start {
     echo "\$DAEMON_NAME already started"
   else
     echo "Starting \$DAEMON_NAME..."
-    su - ${UNRAVEL_ES_USER} -c bash -c "cd /usr/local/\${DAEMON_NAME}; ./dbin/unravel_emr_sensor.sh" >\$OUT_LOG 2>&1 &
+    su - \${UNRAVEL_ES_USER} -c bash -c "cd /usr/local/\${DAEMON_NAME}; ./dbin/unravel_emr_sensor.sh" >\$OUT_LOG 2>&1 &
     echo \$! > \$PID_FILE
     disown %1
     if ! is_running ; then
@@ -691,7 +696,7 @@ function stop {
     sleep 1
     # Search for any process that launched the shell script or the jar.
     # So keep this backward compatible with Unravel 4.4 version.
-    PIDS=\$(ps -U ${UNRAVEL_ES_USER} -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep | awk '{ print \$2 }' )
+    PIDS=\$(ps -U \${UNRAVEL_ES_USER} -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep | awk '{ print \$2 }' )
     [ "\$PIDS" ] && kill \$PIDS
     for i in {1..10}
     do
@@ -770,6 +775,38 @@ EOF
 }
 
 ###############################################################################################
+# Generating unravel.properties file with kerberos configurations                             #
+###############################################################################################
+function gen_secure_properties() {
+export UNRAVEL_CTL=/usr/local/unravel_es/etc/unravel_ctl
+if [ $UNRAVEL_ES_USER == 'hdfs' ] && [ ! -e $UNRAVEL_CTL ]; then
+    UNRAVEL_ES_USER=unravel
+    UNRAVEL_ES_GROUP=unravel
+elif [ $UNRAVEL_ES_USER != 'hdfs' ]; then
+    cat <<EOF > $UNRAVEL_CTL
+UNRAVEL_ES_USER=$UNRAVEL_ES_USER
+UNRAVEL_ES_GROUP=$UNRAVEL_ES_USER
+EOF
+fi
+
+id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
+setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
+if [ ! -e /usr/local/unravel_es/etc/unravel.properties ]; then
+    mkdir -p /usr/local/unravel_es/etc
+    cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
+com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
+yarn.resourcemanager.webapp.username=$RM_USER
+yarn.resourcemanager.webapp.password=$RM_PASSWORD
+EOF
+    echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
+    echo "Kerberos Keytab: $KEYTAB_PATH"
+else
+    cat /usr/local/unravel_es/etc/unravel.properties
+fi
+}
+
+###############################################################################################
 # Checks whether the Unravel MR sensor (unravel_es) has already been installed                #
 ###############################################################################################
 function es_already_installed() {
@@ -819,6 +856,11 @@ function es_install() {
   fi
 
   # generate /etc/init.d/unravel_es
+  # For Secure Cluster create unravel.properties file
+  if is_secure; then
+    echo "Setting up Unravel properties for secure cluster..."
+    gen_secure_properties
+  fi
   get_sensor_initd
   # Note that /usr/local/unravel_es/dbin/unravel_emr_sensor.sh is now
   # packaged by the RPM and unzipped.
@@ -837,7 +879,7 @@ function es_install() {
       [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
       sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
       sudo chmod 755 ${UES_PATH}/dbin/*
-      sudo chown -R ${UNRAVEL_ES_USER}:${UNRAVEL_ES_GROUP} ${UES_PATH}
+      sudo chown -R "${UNRAVEL_ES_USER}":"${UNRAVEL_ES_GROUP}" ${UES_PATH}
   else
       echo "ERROR: Fetch of $UESURL failed, RC=$RC" |tee -a $OUT_FILE
       return 1
@@ -1478,7 +1520,12 @@ function install_usage() {
     echo "  --env               comma separated <key=value> env variables" | tee -a ${OUT_FILE}
     echo "  --enable-am-polling Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
     echo "  --disable-aa        Disable Auto Action" | tee -a ${OUT_FILE}
-    echo "  --hive-id-cache     Max # of MR job id cache for long running Hive job" | tee -a ${OUT_FILE}
+    echo "  --rm-userid         Yarn resource manager webui username" | tee -a ${OUT_FILE}
+    echo "  --rm-password       Yarn resource manager webui password" | tee -a ${OUT_FILE}
+    echo "  --user-id           User id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --group-id          Group id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --keytab-file       Path to the kerberos keytab file that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  --principal         Kerberos principal name that will be used to kinit" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
@@ -1571,6 +1618,12 @@ function install() {
     ENABLE_AA=true
     AM_POLLING=false
     HIVE_ID_CACHE=1000
+    UNRAVEL_ES_USER=hdfs
+    UNRAVEL_ES_GROUP=hadoop
+    RM_USER=a
+    RM_PASSWORD=a
+    KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
+
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
       DEPS_OK=1
@@ -1647,8 +1700,32 @@ function install() {
             "disable-aa" | "--disable-aa")
                 export ENABLE_AA=false
                 ;;
-             "hive-id-cache" | "--hive-id-cache")
+            "hive-id-cache" | "--hive-id-cache")
                 export HIVE_ID_CACHE=$1
+                shift
+                ;;
+            "--user-id")
+                export UNRAVEL_ES_USER=$1
+                shift
+                ;;
+            "--group-id")
+                export UNRAVEL_ES_GROUP=$1
+                shift
+                ;;
+            "--keytab-file")
+                export KEYTAB_PATH=$1
+                shift
+                ;;
+            "--principal")
+                export KEYTAB_PRINCIPAL=$1
+                shift
+                ;;
+            "--rm-userid")
+                export RM_USER=$1
+                shift
+                ;;
+            "--rm-password")
+                export RM_PASSWORD=$1
                 shift
                 ;;
             * )
@@ -1661,6 +1738,12 @@ function install() {
 
     # detect the cluster and settings
     isFunction cluster_detect && cluster_detect
+
+    # construct default principal name
+    if [ -z $KEYTAB_PRINCIPAL ]; then
+        DEFAULT_REALM=`cat /etc/krb5.conf | grep default_realm | awk '{ print $3 }'`
+        KEYTAB_PRINCIPAL="ambari-server-$CLUSTER_ID@$DEFAULT_REALM"
+    fi
 
     # dump the contents of env variables and shell settings
     debug_dump
@@ -1699,6 +1782,17 @@ function install() {
     install_spark
 }
 
+function  is_secure() {
+    result=$(curl -u $AMBARI_USR:"$AMBARI_PWD" http://headnodehost:$AMBARI_PORT/api/v1/clusters/$CLUSTER_ID | \
+    python -c 'import sys,json; print(json.load(sys.stdin)["Clusters"]["security_type"].strip())')
+    echo "Checking Security Type"
+    echo "Security Type: $result"
+    if [ $result == 'KERBEROS' ]; then
+      return 0
+    else
+      return 1
+    fi
+}
 
 PLATFORM="HDI"
 
