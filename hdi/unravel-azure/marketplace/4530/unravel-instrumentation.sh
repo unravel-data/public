@@ -14,9 +14,9 @@ fi
 
 SCRIPT_PATH="/usr/local/unravel/hdi_onpremises_setup.py"
 SCRIPT_PATH="/usr/local/unravel/install_bin/cluster-setup-scripts/unravel_hdp_setup.py"
-SPARK_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)')
+SPARK_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)') || echo "1.6"
 export SPARK_MAJOR_VERSION=2
-SPARK2_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)')
+SPARK2_VER=$(spark-submit --version 2>&1 | grep -oP -m 1 '.*?version\s+\K([0-9.]+)') || echo "2.3"
 echo "Spark version: $SPARK_VER"
 echo "Spark2 version: $SPARK2_VER"
 AMBARI_USER=$(python -c 'import hdinsight_common.Constants as Constants; print(Constants.AMBARI_WATCHDOG_USERNAME)')
