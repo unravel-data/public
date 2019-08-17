@@ -787,6 +787,8 @@ elif [ $UNRAVEL_ES_USER != 'hdfs' ]; then
 UNRAVEL_ES_USER=$UNRAVEL_ES_USER
 UNRAVEL_ES_GROUP=$UNRAVEL_ES_USER
 EOF
+else
+  source $UNRAVEL_CTL
 fi
 
 id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
@@ -868,6 +870,8 @@ function es_install() {
   # template (unravel_es.properties.template) that ships with the RPM.
   gen_sensor_properties
 
+  echo "running unravel_es as: $UNRAVEL_ES_USER"
+  echo "running unravel_es as: $UNRAVEL_ES_GROUP"
   UES_JAR_NAME="unravel-emrsensor-pack.zip"
   UESURL="http://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
   UES_PATH="/usr/local/unravel_es"
