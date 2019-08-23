@@ -7,7 +7,6 @@
         "versions": ["3.6"],
         "componentVersions": {
         "Spark": [ "2.1", "2.2", "2.3" ],
-        "SPARK": [ "2.1", "2.2", "2.3" ],
         "Hadoop": ["2.7"],
         "Hbase": ["1.1"],
         "Kafka": ["1.0", "1.1"]
