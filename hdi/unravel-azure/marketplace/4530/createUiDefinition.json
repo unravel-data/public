@@ -4,11 +4,11 @@
     "clusterFilters": {
         "types": ["Spark", "Hadoop", "Hbase", "Kafka"],
            "tiers": [ "Standard", "Premium" ],
-        "versions": ["3.6"],
+        "versions": ["3.6", "4.0"],
         "componentVersions": {
-        "Spark": [ "2.1", "2.2", "2.3" ],
-        "Hadoop": ["2.7"],
-        "Hbase": ["1.1"],
+        "Spark": ["2.1", "2.2", "2.3", "2.4"],
+        "Hadoop": ["2.7", "3.1"],
+        "Hbase": ["1.1", "2.0"],
         "Kafka": ["1.0", "1.1"]
       }
     }
