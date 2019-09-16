@@ -319,14 +319,19 @@
     }
   ],
   "outputs": {
-    "cluster": {
+    "clusterInfo": {
       "type": "object",
       "value": "[reference(resourceId('Microsoft.HDInsight/clusters',parameters('clusterName')))]"
     },
 
+    "clusterName": {
+      "type": "string",
+      "value": "[parameters('clusterName')]"
+    },
+
     "Unravel Edgenode": {
       "type": "string",
-      "value": "[concat('unravel-edgenode','.',parameters('clusterName'),'-','ssh.azurehdinsight.net')]"
+      "value": "[concat(parameters('clusterName'),'-','unr.apps.azurehdinsight.net')]"
     },
 
     "Cluster Login Name": {
@@ -348,6 +353,5 @@
       "type": "string",
       "value": "[parameters('sshPassword')]"
     }
-
   }
 }
