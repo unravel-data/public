@@ -124,7 +124,6 @@ function setup_restserver() {
     echo "Using Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT" | tee -a ${OUT_FILE}
   else
     echo "ERROR: Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT is not available. Aborting install" | tee -a ${OUT_FILE}
-    exit 1
   fi
 }
 
@@ -150,13 +149,23 @@ function fetch_sensor_zip() {
 
     echo "Fetching sensor zip file" | tee -a ${OUT_FILE}
     URL="http://${UNRAVEL_SERVER}/hh/$zip_name"
+    if [ ! -z $SENSOR_URL ]; then
+        URL=${SENSOR_URL%%/}/$zip_name
+    fi
     echo "GET $URL" | tee -a ${OUT_FILE}
     wget -4 -q -T 10 -t 5 -O - $URL > ${TMP_DIR}/$zip_name
     #wget $URL -O ${TMP_DIR}/$SPK_ZIP_NAME
     RC=$?
     echo "RC: " $RC | tee -a ${OUT_FILE}
 
+    # Try to download sensor file from dfs backup if wget failed
+    if [ $RC -ne 0 ]; then
+        download_from_dfs $zip_name ${TMP_DIR}/$zip_name
+        RC=$?
+    fi
+
     if [ $RC -eq 0 ]; then
+        upload_to_dfs ${TMP_DIR}/$zip_name
         sudo mkdir -p $AGENT_JARS
         sudo chmod -R 655 ${AGENT_DST}
         sudo chown -R ${AGENT_DST_OWNER} ${AGENT_DST}
@@ -435,10 +444,21 @@ function install_hh_jar() {
   #dest:
   HH_JAR_NAME="unravel-hive-${HIVE_VER_X}.${HIVE_VER_Y}.0-hook.jar"
   HHURL="http://${UNRAVEL_SERVER}/hh/$HH_JAR_NAME"
+  if [ ! -z $SENSOR_URL ]; then
+    HHURL=${SENSOR_URL%%/}/$HH_JAR_NAME
+  fi
   echo "GET $HHURL" |tee -a $OUT_FILE
   wget -4 -q -T 10 -t 5 -O - $HHURL > ${TMP_DIR}/$HH_JAR_NAME
   RC=$?
+
+  if [ $RC -ne 0 ]; then
+    echo "Failed to download Hive hook from $HHURL try to download it from dfs backup"
+    download_from_dfs $HH_JAR_NAME ${TMP_DIR}/$HH_JAR_NAME
+    RC=$?
+  fi
+
   if [ $RC -eq 0 ]; then
+    upload_to_dfs ${TMP_DIR}/$HH_JAR_NAME
     echo "Copying ${HH_JAR_NAME} to ${UNRAVEL_HH_DEST}" | tee -a $OUT_FILE
     sudo mkdir -p $UNRAVEL_HH_DEST
     sudo chown ${UNRAVEL_HH_DEST_OWNER} $UNRAVEL_HH_DEST
@@ -874,11 +894,15 @@ function es_install() {
   echo "running unravel_es as: $UNRAVEL_ES_GROUP"
   UES_JAR_NAME="unravel-emrsensor-pack.zip"
   UESURL="http://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
+  if [ ! -z $SENSOR_URL ]; then
+    UESURL=${SENSOR_URL%%/}/$UES_JAR_NAME
+  fi
   UES_PATH="/usr/local/unravel_es"
   echo "GET $UESURL" |tee -a  $OUT_FILE
   wget -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
   RC=$?
   if [ $RC -eq 0 ]; then
+      upload_to_dfs $UES_PATH
       sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  ${UES_PATH}
       [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
       sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
@@ -886,7 +910,10 @@ function es_install() {
       sudo chown -R "${UNRAVEL_ES_USER}":"${UNRAVEL_ES_GROUP}" ${UES_PATH}
   else
       echo "ERROR: Fetch of $UESURL failed, RC=$RC" |tee -a $OUT_FILE
-      return 1
+      download_from_dfs $UES_JAR_NAME
+      if [ $? -ne 0 ]; then
+        return 1
+      fi
   fi
 
   # start
@@ -1627,6 +1654,7 @@ function install() {
     RM_USER=a
     RM_PASSWORD=a
     KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
+    DFS_PATH='/tmp/unravel-sensors/'
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1730,6 +1758,14 @@ function install() {
                 ;;
             "--rm-password")
                 export RM_PASSWORD=$1
+                shift
+                ;;
+            "--sensor-url")
+                export SENSOR_URL=$1
+                shift
+                ;;
+            "--sensor-dfs-path")
+                export DFS_PATH=$1
                 shift
                 ;;
             * )
@@ -3354,6 +3390,24 @@ EOF
    else
         sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR}
     fi
+}
+
+function upload_to_dfs(){
+    local file_name=`basename $1`
+    hdfs dfs -ls ${DFS_PATH%%/}/$file_name
+    file_exists=$?
+    hdfs dfs -ls ${DFS_PATH} 2>&1 >/dev/null
+    folder_exists=$?
+    if [[ $folder_exists -ne 0 ]]; then
+        hdfs dfs -mkdir -p $DFS_PATH
+    fi
+    if [[ $file_exists -ne 0 ]]; then
+        hdfs dfs -put -f $1 $DFS_PATH
+    fi
+}
+
+function download_from_dfs(){
+    hdfs dfs -get ${DFS_PATH%%/}/$1 $2
 }
 
 # dump the contents of env variables and shell settings
