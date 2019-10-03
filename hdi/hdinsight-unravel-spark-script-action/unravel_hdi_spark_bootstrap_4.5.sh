@@ -160,6 +160,7 @@ function fetch_sensor_zip() {
 
     # Try to download sensor file from dfs backup if wget failed
     if [ $RC -ne 0 ]; then
+        echo "Failed to download sensor zip file from $URL try to download it from dfs backup"
         download_from_dfs $zip_name ${TMP_DIR}/$zip_name
         RC=$?
     fi
