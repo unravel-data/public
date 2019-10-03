@@ -3413,6 +3413,7 @@ function upload_to_dfs(){
 }
 
 function download_from_dfs(){
+    rm -f $2
     hdfs dfs -get ${DFS_PATH%%/}/$1 $2
     return $?
 }
