@@ -123,7 +123,7 @@ function setup_restserver() {
   if is_lr_reachable; then
     echo "Using Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT" | tee -a ${OUT_FILE}
   else
-    echo "ERROR: Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT is not available. Aborting install" | tee -a ${OUT_FILE}
+    echo "ERROR: Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT is not available. Please check unravel_lr daemon" | tee -a ${OUT_FILE}
   fi
 }
 
@@ -3398,9 +3398,10 @@ EOF
     fi
 }
 
+# Upload local sensor file to dfs
 function upload_to_dfs(){
     local file_name=`basename $1`
-    hdfs dfs -ls ${DFS_PATH%%/}/$file_name
+    hdfs dfs -ls ${DFS_PATH%%/}/$file_name 2>&1 >/dev/null
     file_exists=$?
     hdfs dfs -ls ${DFS_PATH} 2>&1 >/dev/null
     folder_exists=$?
@@ -3408,13 +3409,17 @@ function upload_to_dfs(){
         hdfs dfs -mkdir -p $DFS_PATH
     fi
     if [[ $file_exists -ne 0 ]]; then
+        echo "Uploading ${file_name} to dfs $DFS_PATH"
         hdfs dfs -put -f $1 $DFS_PATH
     fi
 }
 
+# Download sensor file from dfs to local
 function download_from_dfs(){
     rm -f $2
-    hdfs dfs -get ${DFS_PATH%%/}/$1 $2
+    local dfs_target=${DFS_PATH%%/}/$1
+    echo "Downloading file from dfs $dfs_target to $2"
+    hdfs dfs -get ${dfs_target} $2
     return $?
 }
 
