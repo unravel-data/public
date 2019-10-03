@@ -91,8 +91,8 @@ function check_connectivity() {
     echo $RT
     if [ $RT -ne 0 ]; then
         echo "Unable to contact Unravel at ${UNRAVEL_SERVER}" | tee -a ${OUT_FILE}
-        [ "$ALLOW_ERRORS" ]  &&  exit 1
-        exit 0
+#        [ "$ALLOW_ERRORS" ]  &&  exit 1
+#        exit 0
     fi
 }
 
