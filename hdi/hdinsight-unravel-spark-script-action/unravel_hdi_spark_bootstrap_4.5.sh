@@ -901,6 +901,12 @@ function es_install() {
   echo "GET $UESURL" |tee -a  $OUT_FILE
   wget -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
   RC=$?
+
+  if [ $RC -ne 0 ]; then
+    download_from_dfs $UES_JAR_NAME ${TMP_DIR}/$UES_JAR_NAME
+    RC=$?
+  fi
+
   if [ $RC -eq 0 ]; then
       upload_to_dfs ${TMP_DIR}/$UES_JAR_NAME
       sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  ${UES_PATH}
@@ -3408,6 +3414,7 @@ function upload_to_dfs(){
 
 function download_from_dfs(){
     hdfs dfs -get ${DFS_PATH%%/}/$1 $2
+    return $?
 }
 
 # dump the contents of env variables and shell settings
