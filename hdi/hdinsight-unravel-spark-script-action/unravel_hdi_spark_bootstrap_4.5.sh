@@ -902,7 +902,7 @@ function es_install() {
   wget -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
   RC=$?
   if [ $RC -eq 0 ]; then
-      upload_to_dfs $UES_PATH
+      upload_to_dfs ${TMP_DIR}/$UES_JAR_NAME
       sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  ${UES_PATH}
       [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
       sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
