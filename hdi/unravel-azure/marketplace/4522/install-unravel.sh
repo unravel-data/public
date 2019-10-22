@@ -13,7 +13,7 @@ if [ ! -d $PACKAGE_LOC ]; then
     mkdir -p $PACKAGE_LOC
 fi
 
-#WGET ${RPM_URL}
+WGET ${RPM_URL}
 # Prepare the VM for unravel rpm install
 for package in "libaio" "lzop" "yum-utils"; do
     rpm -qa | grep $package
