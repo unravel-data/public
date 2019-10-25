@@ -75,11 +75,9 @@ sudo /usr/local/unravel/install_bin/kafka_reset.sh
 ## change permission on unravel daemon scripts
 chmod -R 755 /usr/local/unravel/init_scripts
 
-sleep 10
 ## Starting unravel daemons
 # /usr/local/unravel/init_scripts/unravel_all.sh stop
 # sleep 10
-/usr/local/unravel/init_scripts/unravel_all.sh start
 
 ## Checking unravel daemons' status
 /usr/local/unravel/init_scripts/unravel_all.sh status
