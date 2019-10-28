@@ -13,12 +13,12 @@
       "metadata": {
         "description": "Size of the edge node that hosts the application"
       },
-      "defaultValue": "Standard_D13_V2",
+      "defaultValue": "Standard_E8_V3",
       "allowedValues": [
-        "Standard_E8_v3",
-        "Standard_E16_v3",
-        "Standard_E20_v3",
-        "Standard_E32_v3",
+        "Standard_E8_V3",
+        "Standard_E16_V3",
+        "Standard_E20_V3",
+        "Standard_E32_V3",
         "Standard_D13_V2",
         "Standard_D14_V2",
         "Standard_D15_V2",
