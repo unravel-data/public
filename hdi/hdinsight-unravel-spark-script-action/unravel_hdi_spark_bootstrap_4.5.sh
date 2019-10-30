@@ -1792,6 +1792,10 @@ function install() {
         KEYTAB_PRINCIPAL="ambari-server-$CLUSTER_ID@$DEFAULT_REALM"
     fi
 
+    if is_secure; then
+        kinit -kt $KEYTAB_PATH $KEYTAB_PRINCIPAL
+    fi
+
     # dump the contents of env variables and shell settings
     debug_dump
 
