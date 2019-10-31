@@ -793,6 +793,9 @@ am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
 EOF
+  if is_secure; then
+      echo $SECURE_PROPS >> /usr/local/unravel_es/etc/unravel_es.properties
+  fi
 }
 
 ###############################################################################################
@@ -814,19 +817,16 @@ fi
 
 id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
 setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
-if [ ! -e /usr/local/unravel_es/etc/unravel.properties ]; then
-    mkdir -p /usr/local/unravel_es/etc
-    cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+SECURE_PROPS=$(cat <<-EOF
+
 com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
 com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
 yarn.resourcemanager.webapp.username=$RM_USER
 yarn.resourcemanager.webapp.password=$RM_PASSWORD
 EOF
-    echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
-    echo "Kerberos Keytab: $KEYTAB_PATH"
-else
-    cat /usr/local/unravel_es/etc/unravel.properties
-fi
+)
+echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
+echo "Kerberos Keytab: $KEYTAB_PATH"
 }
 
 ###############################################################################################
@@ -879,12 +879,12 @@ function es_install() {
   fi
 
   # generate /etc/init.d/unravel_es
+  gen_sensor_initd
   # For Secure Cluster create unravel.properties file
   if is_secure; then
     echo "Setting up Unravel properties for secure cluster..."
     gen_secure_properties
   fi
-  get_sensor_initd
   # Note that /usr/local/unravel_es/dbin/unravel_emr_sensor.sh is now
   # packaged by the RPM and unzipped.
   # Generate /usr/local/unravel_es/etc/unravel_es.properties. We will ignore the
@@ -1547,23 +1547,24 @@ function spark_postinstall_check() {
 function install_usage() {
     echo "Usage: $(basename ${BASH_SOURCE[0]}) install <options>" | tee -a ${OUT_FILE}
     echo "Supported options:" | tee -a ${OUT_FILE}
-    echo "  -y                  unattended install" | tee -a ${OUT_FILE}
-    echo "  -v                  verbose mode" | tee -a ${OUT_FILE}
-    echo "  -h                  usage" | tee -a ${OUT_FILE}
-    echo "  --unravel-server    unravel_host:port (required)" | tee -a ${OUT_FILE}
-    echo "  --unravel-receiver  unravel_restserver:port" | tee -a ${OUT_FILE}
-    echo "  --hive-version      installed hive version" | tee -a ${OUT_FILE}
-    echo "  --spark-version     installed spark version" | tee -a ${OUT_FILE}
-    echo "  --spark-load-mode   sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
-    echo "  --env               comma separated <key=value> env variables" | tee -a ${OUT_FILE}
-    echo "  --enable-am-polling Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
-    echo "  --disable-aa        Disable Auto Action" | tee -a ${OUT_FILE}
-    echo "  --rm-userid         Yarn resource manager webui username" | tee -a ${OUT_FILE}
-    echo "  --rm-password       Yarn resource manager webui password" | tee -a ${OUT_FILE}
-    echo "  --user-id           User id to run Unravel Daemon" | tee -a ${OUT_FILE}
-    echo "  --group-id          Group id to run Unravel Daemon" | tee -a ${OUT_FILE}
-    echo "  --keytab-file       Path to the kerberos keytab file that will be used to kinit" | tee -a ${OUT_FILE}
-    echo "  --principal         Kerberos principal name that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  -y                      unattended install" | tee -a ${OUT_FILE}
+    echo "  -v                      verbose mode" | tee -a ${OUT_FILE}
+    echo "  -h                      usage" | tee -a ${OUT_FILE}
+    echo "  --unravel-server        unravel_host:port (required)" | tee -a ${OUT_FILE}
+    echo "  --unravel-receiver      unravel_restserver:port" | tee -a ${OUT_FILE}
+    echo "  --hive-version          installed hive version" | tee -a ${OUT_FILE}
+    echo "  --spark-version         installed spark version" | tee -a ${OUT_FILE}
+    echo "  --spark-load-mode       sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
+    echo "  --env                   comma separated <key=value> env variables" | tee -a ${OUT_FILE}
+    echo "  --enable-am-polling     Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
+    echo "  --disable-aa            Disable Auto Action" | tee -a ${OUT_FILE}
+    echo "  --rm-userid             Yarn resource manager webui username" | tee -a ${OUT_FILE}
+    echo "  --rm-password           Yarn resource manager webui password" | tee -a ${OUT_FILE}
+    echo "  --user-id               User id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --group-id              Group id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --keytab-file           Path to the kerberos keytab file that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  --principal             Kerberos principal name that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  --sensor-backup-keytab  Keytab that exists in all nodes and have permission to upload file to hdfs /tmp folder" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
@@ -1662,6 +1663,7 @@ function install() {
     RM_PASSWORD=a
     KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
     DFS_PATH='/tmp/unravel-sensors/'
+    SMOKE_KEYTAB_PATH='/etc/security/keytabs/smokeuser.headless.keytab'
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1775,6 +1777,10 @@ function install() {
                 export DFS_PATH=$1
                 shift
                 ;;
+            "--sensor-backup-keytab")
+                export SMOKE_KEYTAB_PATH=$1
+                shift
+                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
@@ -1793,7 +1799,8 @@ function install() {
     fi
 
     if is_secure; then
-        kinit -kt $KEYTAB_PATH $KEYTAB_PRINCIPAL
+        SMOKE_KEYTAB_PRIN=`klist -kt $SMOKE_KEYTAB_PATH | tail -n1 | awk '{print $4}'`
+        kinit -kt $SMOKE_KEYTAB_PATH $SMOKE_KEYTAB_PRIN
     fi
 
     # dump the contents of env variables and shell settings
