@@ -793,9 +793,6 @@ am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
 EOF
-  if is_secure; then
-      echo $SECURE_PROPS >> /usr/local/unravel_es/etc/unravel_es.properties
-  fi
 }
 
 ###############################################################################################
@@ -817,16 +814,19 @@ fi
 
 id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
 setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
-SECURE_PROPS=$(cat <<-EOF
-
+if [ ! -e /usr/local/unravel_es/etc/unravel.properties ]; then
+    mkdir -p /usr/local/unravel_es/etc
+    cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
 com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
 com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
 yarn.resourcemanager.webapp.username=$RM_USER
 yarn.resourcemanager.webapp.password=$RM_PASSWORD
 EOF
-)
-echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
-echo "Kerberos Keytab: $KEYTAB_PATH"
+    echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
+    echo "Kerberos Keytab: $KEYTAB_PATH"
+else
+    cat /usr/local/unravel_es/etc/unravel.properties
+fi
 }
 
 ###############################################################################################
@@ -879,12 +879,12 @@ function es_install() {
   fi
 
   # generate /etc/init.d/unravel_es
-  gen_sensor_initd
   # For Secure Cluster create unravel.properties file
   if is_secure; then
     echo "Setting up Unravel properties for secure cluster..."
     gen_secure_properties
   fi
+  get_sensor_initd
   # Note that /usr/local/unravel_es/dbin/unravel_emr_sensor.sh is now
   # packaged by the RPM and unzipped.
   # Generate /usr/local/unravel_es/etc/unravel_es.properties. We will ignore the
