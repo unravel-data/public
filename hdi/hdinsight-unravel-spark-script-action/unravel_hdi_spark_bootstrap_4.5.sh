@@ -1794,8 +1794,7 @@ function install() {
 
     # construct default principal name
     if [ -z $KEYTAB_PRINCIPAL ]; then
-        DEFAULT_REALM=`cat /etc/krb5.conf | grep default_realm | awk '{ print $3 }'`
-        KEYTAB_PRINCIPAL="ambari-server-$CLUSTER_ID@$DEFAULT_REALM"
+        KEYTAB_PRINCIPAL=`klist -kt $KEYTAB_PATH | tail -n1 | awk '{print $4}'`
     fi
 
     if is_secure; then
