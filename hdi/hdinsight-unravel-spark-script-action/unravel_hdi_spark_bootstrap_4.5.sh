@@ -1547,23 +1547,24 @@ function spark_postinstall_check() {
 function install_usage() {
     echo "Usage: $(basename ${BASH_SOURCE[0]}) install <options>" | tee -a ${OUT_FILE}
     echo "Supported options:" | tee -a ${OUT_FILE}
-    echo "  -y                  unattended install" | tee -a ${OUT_FILE}
-    echo "  -v                  verbose mode" | tee -a ${OUT_FILE}
-    echo "  -h                  usage" | tee -a ${OUT_FILE}
-    echo "  --unravel-server    unravel_host:port (required)" | tee -a ${OUT_FILE}
-    echo "  --unravel-receiver  unravel_restserver:port" | tee -a ${OUT_FILE}
-    echo "  --hive-version      installed hive version" | tee -a ${OUT_FILE}
-    echo "  --spark-version     installed spark version" | tee -a ${OUT_FILE}
-    echo "  --spark-load-mode   sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
-    echo "  --env               comma separated <key=value> env variables" | tee -a ${OUT_FILE}
-    echo "  --enable-am-polling Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
-    echo "  --disable-aa        Disable Auto Action" | tee -a ${OUT_FILE}
-    echo "  --rm-userid         Yarn resource manager webui username" | tee -a ${OUT_FILE}
-    echo "  --rm-password       Yarn resource manager webui password" | tee -a ${OUT_FILE}
-    echo "  --user-id           User id to run Unravel Daemon" | tee -a ${OUT_FILE}
-    echo "  --group-id          Group id to run Unravel Daemon" | tee -a ${OUT_FILE}
-    echo "  --keytab-file       Path to the kerberos keytab file that will be used to kinit" | tee -a ${OUT_FILE}
-    echo "  --principal         Kerberos principal name that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  -y                      unattended install" | tee -a ${OUT_FILE}
+    echo "  -v                      verbose mode" | tee -a ${OUT_FILE}
+    echo "  -h                      usage" | tee -a ${OUT_FILE}
+    echo "  --unravel-server        unravel_host:port (required)" | tee -a ${OUT_FILE}
+    echo "  --unravel-receiver      unravel_restserver:port" | tee -a ${OUT_FILE}
+    echo "  --hive-version          installed hive version" | tee -a ${OUT_FILE}
+    echo "  --spark-version         installed spark version" | tee -a ${OUT_FILE}
+    echo "  --spark-load-mode       sensor mode [DEV | OPS | BATCH]" | tee -a ${OUT_FILE}
+    echo "  --env                   comma separated <key=value> env variables" | tee -a ${OUT_FILE}
+    echo "  --enable-am-polling     Enable Auto Action AM Metrics Polling" | tee -a ${OUT_FILE}
+    echo "  --disable-aa            Disable Auto Action" | tee -a ${OUT_FILE}
+    echo "  --rm-userid             Yarn resource manager webui username" | tee -a ${OUT_FILE}
+    echo "  --rm-password           Yarn resource manager webui password" | tee -a ${OUT_FILE}
+    echo "  --user-id               User id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --group-id              Group id to run Unravel Daemon" | tee -a ${OUT_FILE}
+    echo "  --keytab-file           Path to the kerberos keytab file that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  --principal             Kerberos principal name that will be used to kinit" | tee -a ${OUT_FILE}
+    echo "  --sensor-backup-keytab  Keytab that exists in all nodes and have permission to upload file to hdfs /tmp folder" | tee -a ${OUT_FILE}
 }
 
 function install_hivehook() {
@@ -1662,6 +1663,7 @@ function install() {
     RM_PASSWORD=a
     KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
     DFS_PATH='/tmp/unravel-sensors/'
+    SMOKE_KEYTAB_PATH='/etc/security/keytabs/smokeuser.headless.keytab'
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1775,6 +1777,10 @@ function install() {
                 export DFS_PATH=$1
                 shift
                 ;;
+            "--sensor-backup-keytab")
+                export SMOKE_KEYTAB_PATH=$1
+                shift
+                ;;
             * )
                 echo "Invalid option $opt" | tee -a ${OUT_FILE}
                 install_usage
@@ -1788,8 +1794,12 @@ function install() {
 
     # construct default principal name
     if [ -z $KEYTAB_PRINCIPAL ]; then
-        DEFAULT_REALM=`cat /etc/krb5.conf | grep default_realm | awk '{ print $3 }'`
-        KEYTAB_PRINCIPAL="ambari-server-$CLUSTER_ID@$DEFAULT_REALM"
+        KEYTAB_PRINCIPAL=`klist -kt $KEYTAB_PATH | tail -n1 | awk '{print $4}'`
+    fi
+
+    if is_secure; then
+        SMOKE_KEYTAB_PRIN=`klist -kt $SMOKE_KEYTAB_PATH | tail -n1 | awk '{print $4}'`
+        kinit -kt $SMOKE_KEYTAB_PATH $SMOKE_KEYTAB_PRIN
     fi
 
     # dump the contents of env variables and shell settings
