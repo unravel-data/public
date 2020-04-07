@@ -691,7 +691,7 @@ function get_pid {
 }
 
 function is_running {
-  $([ -f $PID_FILE ] && ps $(get_pid) > /dev/null 2>&1) || $(ps -U $UNRAVEL_ES_USER -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep > /dev/null 2>&1)
+  \$([ -f \$PID_FILE ] && ps \$(get_pid) > /dev/null 2>&1) || \$(ps -U \$UNRAVEL_ES_USER -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep > /dev/null 2>&1)
 }
 
 function start {
@@ -1657,7 +1657,7 @@ function install() {
     UNZIP=$(which unzip 2>/dev/null)
 
     DEPS_OK=0
-    METRICS_FACTOR=1
+    METRICS_FACTOR=6
     ENABLE_AA=true
     AM_POLLING=false
     HIVE_ID_CACHE=1000
