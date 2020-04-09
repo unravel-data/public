@@ -691,7 +691,7 @@ function get_pid {
 }
 
 function is_running {
-  [ -f \$PID_FILE ] && ps \$(get_pid) > /dev/null 2>&1
+  \$([ -f \$PID_FILE ] && ps \$(get_pid) > /dev/null 2>&1) || \$(ps -U \$UNRAVEL_ES_USER -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep > /dev/null 2>&1)
 }
 
 function start {
@@ -719,13 +719,17 @@ function stop {
     # So keep this backward compatible with Unravel 4.4 version.
     PIDS=\$(ps -U \${UNRAVEL_ES_USER} -f | egrep "unravel_es|unravel_emr_sensor" | grep -v grep | awk '{ print \$2 }' )
     [ "\$PIDS" ] && kill \$PIDS
-    for i in {1..10}
+    for i in {1..90}
     do
         if ! is_running; then
 			break
         fi
         echo -n "."
         sleep 1
+        if [ \$i -ge 90 ]; then
+          echo "stop timed out force kill"
+          [ "\$PIDS" ] && kill -9 \$PIDS
+        fi
     done
     if is_running; then
         echo "\$DAEMON_NAME not stopped; may still be shutting down or shutdown may have failed"
@@ -1653,7 +1657,7 @@ function install() {
     UNZIP=$(which unzip 2>/dev/null)
 
     DEPS_OK=0
-    METRICS_FACTOR=1
+    METRICS_FACTOR=6
     ENABLE_AA=true
     AM_POLLING=false
     HIVE_ID_CACHE=1000
