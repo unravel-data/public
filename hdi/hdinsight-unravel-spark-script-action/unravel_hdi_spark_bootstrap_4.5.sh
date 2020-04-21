@@ -2927,7 +2927,7 @@ function final_check(){
     echo "Running final_check.py in the background"
     cat << EOF > "/tmp/unravel/final_check.py"
 #!/usr/bin/env python
-#v1.1.7
+#v1.1.8
 import urllib2
 from subprocess import call, check_output
 import json, argparse, re, base64
@@ -2947,7 +2947,7 @@ parser.add_argument('-s', '--spark_ver', help='spark version')
 parser.add_argument('-hive', '--hive_ver', help='hive version', required=True)
 parser.add_argument('-l', '--am_host', help='ambari host', required=True)
 parser.add_argument('--uninstall', '-uninstall', help='remove unravel configurations from ambari', action='store_true')
-parser.add_argument('--metrics-factor', help='Unravel Agent metrics factor ', type=int, default=1)
+parser.add_argument('--metrics-factor', help='Unravel Agent metrics factor ', type=int, default=6)
 argv = parser.parse_args()
 argv.username = Constants.AMBARI_WATCHDOG_USERNAME
 base64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password
@@ -3102,7 +3102,7 @@ def check_mapred_site_configs(uninstall=False):
         print('\nUnravel mapred-site configs correct')
     else:
         for key, val in mapred_site_configs.iteritems():
-            prop_regex = get_prop_regex(val, '.*?', '.*?', *['[0-9]{1,5}'] * 2)
+            prop_regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*')
             if uninstall:
                 if mapred_site['properties'].get(key, None) and re.search(prop_regex, mapred_site['properties'][key]):
                     print('\n\nmapred-site config {0} found, removing'.format(key))
@@ -3143,7 +3143,7 @@ def check_spark_default_configs(uninstall=False):
                         print('\n\nUnravel Spark Config {0} found, removing\n'.format(key))
                         val_regex = get_prop_regex(val, *val[1:])
                         if re.match("spark.*?.extraJavaOptions", key):
-                            val_regex = get_prop_regex(val, '.*?', *['[0-9]{1,3}'] * 3)
+                            val_regex = get_prop_regex(val, '.*?', r'[,a-zA-Z\d=-]*', *['[0-9]{1,3}'] * 3)
                         new_spark_def['properties'][key] = remove_propery(prop_val=new_spark_def['properties'][key],
                                                                           prop_regex='\s?' + val_regex)
             elif not check_spark_config:
@@ -3159,7 +3159,7 @@ def check_spark_default_configs(uninstall=False):
                             if protocol.startswith(('wasb', 'adl', 'abfs')) and hdfs_url not in new_spark_def['properties'][key]:
                                 new_spark_def['properties'][key] = new_spark_def['properties'][key].replace(protocol + '://', hdfs_url)
                         elif (key == 'spark.driver.extraJavaOptions' or key == 'spark.executor.extraJavaOptions') and get_prop_val(val) not in new_spark_def['properties'][key]:
-                            regex = get_prop_regex(val, '.*?', *['[0-9]{1,3}'] * 3)
+                            regex = get_prop_regex(val, '.*?', r'[,a-zA-Z\d=-]*', *['[0-9]{1,3}'] * 3)
                             if re.search(regex, new_spark_def['properties'][key]):
                                 new_spark_def['properties'][key] = re.sub(regex,
                                                                           get_prop_val(val),
@@ -3183,7 +3183,7 @@ def check_tez_site_configs(uninstall=False):
     make_change = False
     for key, val in tez_site_configs.iteritems():
         if uninstall:
-            regex = get_prop_regex(val, '.*?', '.*?', *['[0-9]{1,5}'] * 2)
+            regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*')
             if re.search(regex, tez_site['properties'][key]):
                 print('Unravel TEZ config {0} found, removing'.format(key))
                 tez_site['properties'][key] = remove_propery(prop_val=tez_site['properties'][key],
@@ -3337,7 +3337,8 @@ hive_site_configs = {'hive.exec.driver.run.hooks': ['com.unraveldata.dataflow.hi
                     'com.unraveldata.host': [argv.unravel],
                     'hive.exec.pre.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HivePreHook'],
                     'hive.exec.post.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HivePostHook'],
-                    'hive.exec.failure.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HiveFailHook']
+                    'hive.exec.failure.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HiveFailHook'],
+                    'com.unraveldata.cluster.id': [argv.cluster_name],
                     }
 # New Hive Hook Class Name for 4.5.0.0
 unravel_version = get_unravel_ver(argv.unravel_protocol)
@@ -3350,11 +3351,26 @@ if compare_versions(unravel_version, "4.5.0.0") >= 0:
     hive_site_configs['hive.exec.failure.hooks'][1] = hook_class
 
 agent_path = "/usr/local/unravel-agent"
-spark_defaults_configs={'spark.eventLog.dir': [hdfs_url],
+spark_defaults_configs={
+                        'spark.eventLog.dir': [hdfs_url],
                         'spark.unravel.server.hostport': ['{0}:{1}', argv.unravel, argv.lr_port],
-                        'spark.driver.extraJavaOptions': ['-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{1}.{2},config=driver -Dunravel.metrics.factor={3}',
-                            agent_path, argv.spark_ver[0], argv.spark_ver[1], argv.metrics_factor],
-                        'spark.executor.extraJavaOptions': ['-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{1}.{2},config=executor -Dunravel.metrics.factor={3}', agent_path, argv.spark_ver[0],argv.spark_ver[1], argv.metrics_factor]}
+                        'spark.driver.extraJavaOptions': [
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=driver{1} -Dunravel.metrics.factor={4}',
+                            agent_path,
+                            argv.spark_ver[0],
+                            argv.spark_ver[1],
+                            argv.metrics_factor,
+                            ",clusterId=" + argv.cluster_name
+                           ],
+                        'spark.executor.extraJavaOptions': [
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4}',
+                            ",clusterId=" + argv.cluster_name,
+                            agent_path,
+                            argv.spark_ver[0],
+                            argv.spark_ver[1],
+                            argv.metrics_factor
+                        ]
+}
 
 # Add account name and root path for ADL Gen 1
 if hdfs_url.startswith('adl'):
@@ -3368,10 +3384,10 @@ if argv.all:
                         'mapreduce.task.profile': ['true'],
                         'mapreduce.task.profile.maps': ['0-5'],
                         'mapreduce.task.profile.reduces': ['0-5'],
-                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor]}
+                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]}
 tez_site_configs = {
-                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
-                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor]
+                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name],
+                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]
                     }
 
 def main():
