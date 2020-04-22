@@ -780,6 +780,10 @@ EOF
 
 function gen_sensor_properties() {
   sudo mkdir -p /usr/local/unravel_es/etc
+  spark_conf_path="/etc/spark/conf/spark-defaults.conf"
+  if [[ $SPARK_VER_XYZ = 2* ]]; then
+      spark_conf_path="/etc/spark2/conf/spark-defaults.conf"
+  fi
   cat <<EOF > /usr/local/unravel_es/etc/unravel_es.properties
 #######################################################
 # unravel_es settings                                 #
@@ -796,6 +800,7 @@ unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
+spark-conf-path=$spark_conf_path
 EOF
 }
 
