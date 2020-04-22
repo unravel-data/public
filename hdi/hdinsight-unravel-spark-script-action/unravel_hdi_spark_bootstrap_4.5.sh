@@ -3190,7 +3190,7 @@ def check_tez_site_configs(uninstall=False):
                                prop_regex='\s?' + regex)
                 make_change = True
         else:
-            prop_regex = get_prop_regex(val, '.*?', '.*?', *['[0-9]{1,5}'] * 2)
+            prop_regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*')
             if get_prop_val(val) in tez_site['properties'][key]:
                 print(key + ' is correct')
             elif re.search(prop_regex, tez_site['properties'][key]):
