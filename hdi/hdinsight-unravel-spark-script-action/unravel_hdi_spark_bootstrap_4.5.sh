@@ -3357,15 +3357,15 @@ spark_defaults_configs={
                         'spark.driver.extraJavaOptions': [
                             '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=driver{1} -Dunravel.metrics.factor={4}',
                             agent_path,
+                            ",clusterId=" + argv.cluster_name,
                             argv.spark_ver[0],
                             argv.spark_ver[1],
                             argv.metrics_factor,
-                            ",clusterId=" + argv.cluster_name
                            ],
                         'spark.executor.extraJavaOptions': [
                             '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4}',
-                            ",clusterId=" + argv.cluster_name,
                             agent_path,
+                            ",clusterId=" + argv.cluster_name,
                             argv.spark_ver[0],
                             argv.spark_ver[1],
                             argv.metrics_factor
