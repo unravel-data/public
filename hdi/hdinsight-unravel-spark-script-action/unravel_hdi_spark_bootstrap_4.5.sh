@@ -3199,7 +3199,7 @@ def check_tez_site_configs(uninstall=False):
             if key == "tez.am.view-acls" and val[0] in tez_site['properties'][key]:
                 print('Unravel TEZ config {0} found, removing'.format(key))
                 item = tez_site['properties'][key].split(',')
-                item.remove(val)
+                item.remove(val[0])
                 tez_site['properties'][key] = ",".join(item)
                 make_change = True
             elif re.search(regex, tez_site['properties'][key]):
