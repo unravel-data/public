@@ -86,7 +86,7 @@ sleep_with_dots() {
 ###############################################################################################
 function check_connectivity() {
     echo "Getting Unravel version to check connectivity..." | tee -a ${OUT_FILE}
-    curl http://${UNRAVEL_SERVER}/version.txt >> ${OUT_FILE}
+    curl -k ${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/version.txt >> ${OUT_FILE}
     RT=$?
     echo $RT
     if [ $RT -ne 0 ]; then
@@ -148,12 +148,12 @@ function fetch_sensor_zip() {
 
 
     echo "Fetching sensor zip file" | tee -a ${OUT_FILE}
-    URL="http://${UNRAVEL_SERVER}/hh/$zip_name"
+    URL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$zip_name"
     if [ ! -z $SENSOR_URL ]; then
         URL=${SENSOR_URL%%/}/$zip_name
     fi
     echo "GET $URL" | tee -a ${OUT_FILE}
-    wget -4 -q -T 10 -t 5 -O - $URL > ${TMP_DIR}/$zip_name
+    wget --no-check-certificate -4 -q -T 10 -t 5 -O - $URL > ${TMP_DIR}/$zip_name
     #wget $URL -O ${TMP_DIR}/$SPK_ZIP_NAME
     RC=$?
     echo "RC: " $RC | tee -a ${OUT_FILE}
@@ -444,12 +444,12 @@ function install_hh_jar() {
   # install jar
   #dest:
   HH_JAR_NAME="unravel-hive-${HIVE_VER_X}.${HIVE_VER_Y}.0-hook.jar"
-  HHURL="http://${UNRAVEL_SERVER}/hh/$HH_JAR_NAME"
+  HHURL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$HH_JAR_NAME"
   if [ ! -z $SENSOR_URL ]; then
     HHURL=${SENSOR_URL%%/}/$HH_JAR_NAME
   fi
   echo "GET $HHURL" |tee -a $OUT_FILE
-  wget -4 -q -T 10 -t 5 -O - $HHURL > ${TMP_DIR}/$HH_JAR_NAME
+  wget --no-check-certificate -4 -q -T 10 -t 5 -O - $HHURL > ${TMP_DIR}/$HH_JAR_NAME
   RC=$?
 
   if [ $RC -ne 0 ]; then
@@ -898,13 +898,13 @@ function es_install() {
   echo "running unravel_es as: $UNRAVEL_ES_USER"
   echo "running unravel_es as: $UNRAVEL_ES_GROUP"
   UES_JAR_NAME="unravel-emrsensor-pack.zip"
-  UESURL="http://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
+  UESURL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
   if [ ! -z $SENSOR_URL ]; then
     UESURL=${SENSOR_URL%%/}/$UES_JAR_NAME
   fi
   UES_PATH="/usr/local/unravel_es"
   echo "GET $UESURL" |tee -a  $OUT_FILE
-  wget -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
+  wget --no-check-certificate -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
   RC=$?
 
   if [ $RC -ne 0 ]; then
@@ -1668,6 +1668,7 @@ function install() {
     KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
     DFS_PATH='/tmp/unravel-sensors/'
     SMOKE_KEYTAB_PATH='/etc/security/keytabs/smokeuser.headless.keytab'
+    UNRAVEL_PROTOCOL='http'
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1701,8 +1702,14 @@ function install() {
                 ;;
             "unravel-server" | "--unravel-server" )
                 UNRAVEL_SERVER=$1
+                UNRAVEL_REGEX='^(http|https):\/\/(.*)'
+                if [[ $UNRAVEL_SERVER =~ $UNRAVEL_REGEX ]]; then
+                  echo "match ${BASH_REMATCH}"
+                  UNRAVEL_PROTOCOL=${BASH_REMATCH[1]}
+                  UNRAVEL_SERVER=${BASH_REMATCH[2]}
+                fi
                 [[ $UNRAVEL_SERVER != *":"* ]] && UNRAVEL_SERVER=${UNRAVEL_SERVER}:3000
-                export UNRAVEL_SERVER
+                export UNRAVEL_SERVER && export UNRAVEL_PROTOCOL
                 shift
                 ;;
             "unravel-receiver" | "--unravel-receiver" )
@@ -2947,7 +2954,10 @@ parser.add_argument('-s', '--spark_ver', help='spark version')
 parser.add_argument('-hive', '--hive_ver', help='hive version', required=True)
 parser.add_argument('-l', '--am_host', help='ambari host', required=True)
 parser.add_argument('--uninstall', '-uninstall', help='remove unravel configurations from ambari', action='store_true')
-parser.add_argument('--metrics-factor', help='Unravel Agent metrics factor ', type=int, default=1)
+parser.add_argument('--metrics-factor', help='Unravel Agent metrics factor ', type=int, default=6)
+parser.add_argument('--esp', help='HDInsight ESP enable', action='store_true')
+parser.add_argument('--principal', help='HDInsight ESP principal')
+
 argv = parser.parse_args()
 argv.username = Constants.AMBARI_WATCHDOG_USERNAME
 base64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password
@@ -2957,6 +2967,8 @@ unravel_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
 argv.spark_ver = argv.spark_ver.split('.')
 argv.hive_ver = argv.hive_ver.split('.')
+if argv.principal:
+    argv.principal = argv.principal.split("@")[0].split("/")[0]
 log_dir='/tmp/unravel/'
 spark_def_json = log_dir + 'spark-def.json'
 hive_env_json = log_dir + 'hive-env.json'
@@ -3184,7 +3196,13 @@ def check_tez_site_configs(uninstall=False):
     for key, val in tez_site_configs.iteritems():
         if uninstall:
             regex = get_prop_regex(val, '.*?', '.*?', *['[0-9]{1,5}'] * 2)
-            if re.search(regex, tez_site['properties'][key]):
+            if key == "tez.am.view-acls" and val[0] in tez_site['properties'][key]:
+                print('Unravel TEZ config {0} found, removing'.format(key))
+                item = tez_site['properties'][key].split(',')
+                item.remove(val[0])
+                tez_site['properties'][key] = ",".join(item)
+                make_change = True
+            elif re.search(regex, tez_site['properties'][key]):
                 print('Unravel TEZ config {0} found, removing'.format(key))
                 tez_site['properties'][key] = remove_propery(prop_val=tez_site['properties'][key],
                                prop_regex='\s?' + regex)
@@ -3193,6 +3211,11 @@ def check_tez_site_configs(uninstall=False):
             prop_regex = get_prop_regex(val, '.*?', '.*?', *['[0-9]{1,5}'] * 2)
             if get_prop_val(val) in tez_site['properties'][key]:
                 print(key + ' is correct')
+            elif key == "tez.am.view-acls":
+                item = filter(None, tez_site['properties'][key].split(','))
+                item.append(val[0])
+                tez_site['properties'][key] = ",".join(item)
+                make_change = True
             elif re.search(prop_regex, tez_site['properties'][key]):
                 print(key + ' is not correct updating unravel tez properties')
                 tez_site['properties'][key] = re.sub(prop_regex, get_prop_val(val), tez_site['properties'][key])
@@ -3373,6 +3396,8 @@ tez_site_configs = {
                     'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
                     'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor]
                     }
+if argv.esp and argv.principal:
+    tez_site_configs['tez.am.view-acls'] = [argv.principal]
 
 def main():
     sleep(35)
@@ -3400,16 +3425,21 @@ if __name__ == '__main__':
     main()
 
 EOF
+   export PYTHONHTTPSVERIFY=0
    # Remove Unravel Properties from Ambari
+   SECURE_ARGS=""
+   if is_secure; then
+        SECURE_ARGS="--esp --principal $KEYTAB_PRINCIPAL"
+   fi
    if [ "$UNINSTALL" == True ]; then
-        sudo python /tmp/unravel/final_check.py --uninstall -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ}
+        sudo python /tmp/unravel/final_check.py --uninstall --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} ${SECURE_ARGS}
         if [ -e /etc/init.d/unravel_es ]; then
             es_uninstall
         fi
    elif [ "$ENABLE_ALL_SENSOR" == True ]; then
-        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all
+        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all ${SECURE_ARGS}
    else
-        sudo python /tmp/unravel/final_check.py -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR}
+        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS}
     fi
 }
 
