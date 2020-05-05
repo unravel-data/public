@@ -86,7 +86,7 @@ sleep_with_dots() {
 ###############################################################################################
 function check_connectivity() {
     echo "Getting Unravel version to check connectivity..." | tee -a ${OUT_FILE}
-    curl http://${UNRAVEL_SERVER}/version.txt >> ${OUT_FILE}
+    curl -k ${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/version.txt >> ${OUT_FILE}
     RT=$?
     echo $RT
     if [ $RT -ne 0 ]; then
@@ -148,12 +148,12 @@ function fetch_sensor_zip() {
 
 
     echo "Fetching sensor zip file" | tee -a ${OUT_FILE}
-    URL="http://${UNRAVEL_SERVER}/hh/$zip_name"
+    URL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$zip_name"
     if [ ! -z $SENSOR_URL ]; then
         URL=${SENSOR_URL%%/}/$zip_name
     fi
     echo "GET $URL" | tee -a ${OUT_FILE}
-    wget -4 -q -T 10 -t 5 -O - $URL > ${TMP_DIR}/$zip_name
+    wget --no-check-certificate -4 -q -T 10 -t 5 -O - $URL > ${TMP_DIR}/$zip_name
     #wget $URL -O ${TMP_DIR}/$SPK_ZIP_NAME
     RC=$?
     echo "RC: " $RC | tee -a ${OUT_FILE}
@@ -444,12 +444,12 @@ function install_hh_jar() {
   # install jar
   #dest:
   HH_JAR_NAME="unravel-hive-${HIVE_VER_X}.${HIVE_VER_Y}.0-hook.jar"
-  HHURL="http://${UNRAVEL_SERVER}/hh/$HH_JAR_NAME"
+  HHURL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$HH_JAR_NAME"
   if [ ! -z $SENSOR_URL ]; then
     HHURL=${SENSOR_URL%%/}/$HH_JAR_NAME
   fi
   echo "GET $HHURL" |tee -a $OUT_FILE
-  wget -4 -q -T 10 -t 5 -O - $HHURL > ${TMP_DIR}/$HH_JAR_NAME
+  wget --no-check-certificate -4 -q -T 10 -t 5 -O - $HHURL > ${TMP_DIR}/$HH_JAR_NAME
   RC=$?
 
   if [ $RC -ne 0 ]; then
@@ -898,13 +898,13 @@ function es_install() {
   echo "running unravel_es as: $UNRAVEL_ES_USER"
   echo "running unravel_es as: $UNRAVEL_ES_GROUP"
   UES_JAR_NAME="unravel-emrsensor-pack.zip"
-  UESURL="http://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
+  UESURL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$UES_JAR_NAME"
   if [ ! -z $SENSOR_URL ]; then
     UESURL=${SENSOR_URL%%/}/$UES_JAR_NAME
   fi
   UES_PATH="/usr/local/unravel_es"
   echo "GET $UESURL" |tee -a  $OUT_FILE
-  wget -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
+  wget --no-check-certificate -4 -q -T 10 -t 5 -O - $UESURL > ${TMP_DIR}/$UES_JAR_NAME
   RC=$?
 
   if [ $RC -ne 0 ]; then
@@ -1668,6 +1668,7 @@ function install() {
     KEYTAB_PATH='/etc/security/keytabs/ambari.server.keytab'
     DFS_PATH='/tmp/unravel-sensors/'
     SMOKE_KEYTAB_PATH='/etc/security/keytabs/smokeuser.headless.keytab'
+    UNRAVEL_PROTOCOL='http'
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1701,8 +1702,14 @@ function install() {
                 ;;
             "unravel-server" | "--unravel-server" )
                 UNRAVEL_SERVER=$1
+                UNRAVEL_REGEX='^(http|https):\/\/(.*)'
+                if [[ $UNRAVEL_SERVER =~ $UNRAVEL_REGEX ]]; then
+                  echo "match ${BASH_REMATCH}"
+                  UNRAVEL_PROTOCOL=${BASH_REMATCH[1]}
+                  UNRAVEL_SERVER=${BASH_REMATCH[2]}
+                fi
                 [[ $UNRAVEL_SERVER != *":"* ]] && UNRAVEL_SERVER=${UNRAVEL_SERVER}:3000
-                export UNRAVEL_SERVER
+                export UNRAVEL_SERVER && export UNRAVEL_PROTOCOL
                 shift
                 ;;
             "unravel-receiver" | "--unravel-receiver" )
@@ -3400,6 +3407,7 @@ if __name__ == '__main__':
     main()
 
 EOF
+   export PYTHONHTTPSVERIFY=0
    # Remove Unravel Properties from Ambari
    if [ "$UNINSTALL" == True ]; then
         sudo python /tmp/unravel/final_check.py --uninstall -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ}
