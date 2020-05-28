@@ -166,7 +166,9 @@ function fetch_sensor_zip() {
     fi
 
     if [ $RC -eq 0 ]; then
-        upload_to_dfs ${TMP_DIR}/$zip_name
+        if $UPLOAD_SENSOR_TO_DFS; then
+          upload_to_dfs ${TMP_DIR}/$HH_JAR_NAME
+        fi
         sudo mkdir -p $AGENT_JARS
         sudo chmod -R 655 ${AGENT_DST}
         sudo chown -R ${AGENT_DST_OWNER} ${AGENT_DST}
@@ -459,7 +461,9 @@ function install_hh_jar() {
   fi
 
   if [ $RC -eq 0 ]; then
-    upload_to_dfs ${TMP_DIR}/$HH_JAR_NAME
+    if $UPLOAD_SENSOR_TO_DFS; then
+      upload_to_dfs ${TMP_DIR}/$HH_JAR_NAME
+    fi
     echo "Copying ${HH_JAR_NAME} to ${UNRAVEL_HH_DEST}" | tee -a $OUT_FILE
     sudo mkdir -p $UNRAVEL_HH_DEST
     sudo chown ${UNRAVEL_HH_DEST_OWNER} $UNRAVEL_HH_DEST
@@ -913,7 +917,9 @@ function es_install() {
   fi
 
   if [ $RC -eq 0 ]; then
-      upload_to_dfs ${TMP_DIR}/$UES_JAR_NAME
+      if $UPLOAD_SENSOR_TO_DFS; then
+        upload_to_dfs ${TMP_DIR}/$HH_JAR_NAME
+      fi
       sudo /bin/cp ${TMP_DIR}/$UES_JAR_NAME  ${UES_PATH}
       [ -d "${UES_PATH}/dlib" ] && rm -rf ${UES_PATH}/dlib
       sudo unzip -o /usr/local/unravel_es/$UES_JAR_NAME -d ${UES_PATH}/
@@ -1669,6 +1675,8 @@ function install() {
     DFS_PATH='/tmp/unravel-sensors/'
     SMOKE_KEYTAB_PATH='/etc/security/keytabs/smokeuser.headless.keytab'
     UNRAVEL_PROTOCOL='http'
+    # Upload sensor files to DFS backup only when 1. cluster is not secure or 2. kinit return 0
+    UPLOAD_SENSOR_TO_DFS=false
 
     if [ -z "$WGET" ]; then
       echo "ERROR: 'wget' is not available. Please, install it and rerun the setup" | tee -a ${OUT_FILE}
@@ -1811,7 +1819,14 @@ function install() {
     if is_secure; then
         SMOKE_KEYTAB_PRIN=`klist -kt $SMOKE_KEYTAB_PATH | tail -n1 | awk '{print $4}'`
         kinit -kt $SMOKE_KEYTAB_PATH $SMOKE_KEYTAB_PRIN
+        klist
+        if [[ $? -eq 0 ]];then
+          UPLOAD_SENSOR_TO_DFS=true
+        fi
+    else
+        UPLOAD_SENSOR_TO_DFS=true
     fi
+    export UPLOAD_SENSOR_TO_DFS
 
     # dump the contents of env variables and shell settings
     debug_dump
