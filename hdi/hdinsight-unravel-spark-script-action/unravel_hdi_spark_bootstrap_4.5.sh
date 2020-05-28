@@ -1819,14 +1819,13 @@ function install() {
     if is_secure; then
         SMOKE_KEYTAB_PRIN=`klist -kt $SMOKE_KEYTAB_PATH | tail -n1 | awk '{print $4}'`
         kinit -kt $SMOKE_KEYTAB_PATH $SMOKE_KEYTAB_PRIN
-        klist
-        if [[ $? -eq 0 ]];then
+        if klist;then
           UPLOAD_SENSOR_TO_DFS=true
         fi
     else
         UPLOAD_SENSOR_TO_DFS=true
     fi
-    if ! UPLOAD_SENSOR_TO_DFS;then
+    if ! $UPLOAD_SENSOR_TO_DFS;then
       echo "kinit failed sensor backup will be skipped"
     fi
     export UPLOAD_SENSOR_TO_DFS
