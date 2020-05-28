@@ -1826,6 +1826,9 @@ function install() {
     else
         UPLOAD_SENSOR_TO_DFS=true
     fi
+    if ! UPLOAD_SENSOR_TO_DFS;then
+      echo "kinit failed sensor backup will be skipped"
+    fi
     export UPLOAD_SENSOR_TO_DFS
 
     # dump the contents of env variables and shell settings
