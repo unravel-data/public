@@ -3434,6 +3434,8 @@ tez_site_configs = {
                     'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name],
                     'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]
                     }
+if argv.esp and argv.principal:
+    tez_site_configs['tez.am.view-acls'] = [argv.principal]
 
 def main():
     sleep(35)
