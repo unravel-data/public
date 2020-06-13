@@ -298,7 +298,8 @@
             "dependsOn": [
                 "[variables('publicIPAddressName')]",
                 "[variables('nicName')]",
-                "[variables('vnetID')]"
+                "[variables('vnetID')]",
+                "[parameters('networkSecurityGroupName')]"
             ],
             "properties": {
                 "mode": "Incremental",
@@ -328,7 +329,10 @@
                                             }
                                         }
                                     }
-                                ]
+                                ],
+                                "networkSecurityGroup": {
+                                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+                                }
                             }
                         }
                     ],
