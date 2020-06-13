@@ -1,0 +1,584 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "unravel",
+            "metadata": {
+                "description": "User name for the Virtual Machine."
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Password for the Virtual Machine."
+            }
+        },
+        "vmName": {
+            "type": "string",
+            "defaultValue": "unravel-vm-databricks",
+            "metadata": {
+                "description": "Name for the Virtual Machine."
+            }
+        },
+        "vmSize": {
+            "type": "string",
+            "defaultValue": "Standard_E8s_v3",
+            "allowedValues": [
+                "Standard_E8s_v3",
+                "Standard_E16s_v3",
+                "Standard_E20s_v3",
+                "Standard_E32s_v3",
+                "Standard_E48s_v3",
+                "Standard_D13_V2",
+                "Standard_D14_V2",
+                "Standard_D15_V2",
+                "Standard_D16_V3",
+                "Standard_D32_V3"
+            ],
+            "metadata": {
+                "description": "Virtual machine type."
+            }
+        },
+        "vmDataDiskSizeGB": {
+            "type": "int",
+            "defaultValue": 100
+        },
+        "networkSecurityGroupName": {
+            "type": "string",
+            "defaultValue": "unravel-databricks-nsg"
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "metadata": {
+                "description": "The virtual network name."
+            },
+            "defaultValue": "unravel-vnet"
+        },
+        "subnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "The subnet name in the virtual network."
+            },
+            "defaultValue": "unravel-subnet"
+        },
+        "attachPublicIP": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "Whether or not attach public IP to VM"
+            }
+        },
+        "administratorLogin": {
+            "type": "string",
+            "metadata": {
+                "description": "MySQL admin login user, admin user is not allowed"
+            }
+        },
+        "administratorLoginPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "MySQL admin login password"
+            }
+        },
+        "mysqlServerName": {
+            "type": "string",
+            "metadata": {
+                "description": "MySQL server name"
+            }
+        },
+        "skuCapacity": {
+            "type": "int",
+            "allowedValues": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64
+            ],
+            "defaultValue": 2,
+            "metadata": {
+                "description": "MySQL vCores"
+            }
+        },
+        "skuSizeGB": {
+            "type": "int",
+            "defaultValue": 100,
+            "minValue": 10,
+            "maxValue": 1024,
+            "metadata": {
+                "description": "MySQL disk size"
+            }
+        },
+        "skuTier": {
+            "type": "string",
+            "allowedValues": [
+                "GeneralPurpose",
+                "MemoryOptimized"
+            ],
+            "defaultValue": "GeneralPurpose"
+        },
+        "backupRetentionDays": {
+            "type": "int",
+            "defaultValue": 7
+        },
+        "geoRedundantBackup": {
+            "type": "string",
+            "defaultValue": "Disabled",
+            "allowedValues": [
+                "Enabled",
+                "Disabled"
+            ]
+        },
+        "tags": {
+            "type": "object",
+            "defaultValue": {}
+        },
+        "storageAutoGrow": {
+            "type": "string",
+            "defaultValue": "Enabled",
+            "allowedValues": [
+                "Enabled",
+                "Disabled"
+            ]
+        },
+        "commandToExecute": {
+            "type": "string",
+            "defaultValue": "sh install-unravel-databricks.sh",
+            "metadata": {
+                "description": "The command to execute."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        },
+        "virtualNetworkPrefixes": {
+            "type": "array",
+            "metadata": {
+                "description": "Virtual Network address prefixes for new virtual network"
+            }
+        },
+        "subnetPrefix": {
+            "type": "string",
+            "metadata": {
+                "description": "Subnet address prefix for new subnet"
+            }
+        }
+    },
+    "variables": {
+        "dataDisk1Name": "[concat(parameters('vmName'), '-datadisk1')]",
+        "imagePublisher": "unravel-data",
+        "imageOffer": "unravel-databricks-image",
+        "imageSku": "unravel-image-4522",
+        "nicName": "[concat(parameters('vmName'), '-nic')]",
+        "publicIPAddressName": "[concat(parameters('vmName'), '-publicip')]",
+        "publicIPAddressType": "Dynamic",
+        "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName'))]",
+        "extensionName": "CustomScript",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets',  parameters('virtualNetworkName'), parameters('subnetName'))]",
+        "mysqlVersion": "5.7",
+        "skuFamily": "Gen5",
+        "skuTierShort": "[if(equals(parameters('skuTier'), 'GeneralPurpose'), 'GP', 'MO')]",
+        "skuName": "[concat(variables('skuTierShort'), '_', variables('skuFamily'), '_', parameters('skuCapacity'))]",
+        "virtualNetworkRuleName": "Unraveldata-MySQL-Rules",
+        "databaseName": "unravel_mysql_prod",
+        "skuSizeMB": "[mul(parameters('skuSizeGB'), 1024)]",
+        "scriptFileUri": "https://raw.githubusercontent.com/unravel-data/public/4522/hdi/unravel-azure/scripts/install-unravel-databricks.sh"
+    },
+    "resources": [
+        {
+            "apiVersion": "2018-02-01",
+            "name": "pid-3cbfd624-935e-458e-886e-840d2c3bf283",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": []
+                }
+            }
+        },
+        {
+            "name": "[parameters('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2019-09-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSH",
+                        "properties": {
+                            "description": "SSH",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "Internet",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "Port_3000",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3000",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1001,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "port_4043",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "4043",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1002,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2019-04-01",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[parameters('virtualNetworkName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": "[parameters('virtualNetworkPrefixes')]"
+                },
+                "subnets": [
+                    {
+                        "name": "[parameters('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('subnetPrefix')]",
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Sql",
+                                    "locations": [
+                                        "[parameters('location')]"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2019-09-01",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIPAddressName')]",
+            "location": "[parameters('location')]",
+            "condition": "[parameters('attachPublicIP')]",
+            "properties": {
+                "publicIPAllocationMethod": "[variables('publicIPAddressType')]"
+            }
+        },
+        {
+            "apiVersion": "2019-08-01",
+            "type": "Microsoft.Resources/deployments",
+            "name": "updateNetworkInterface",
+            "condition": "[parameters('attachPublicIP')]",
+            "dependsOn": [
+                "[variables('publicIPAddressName')]",
+                "[variables('nicName')]",
+                "[variables('vnetID')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "parameters": {},
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "apiVersion": "2016-03-30",
+                            "name": "[variables('nicName')]",
+                            "location": "[parameters('location')]",
+                            "type": "Microsoft.Network/networkInterfaces",
+                            "properties": {
+                                "ipConfigurations": [
+                                    {
+                                        "name": "ipconfig1",
+                                        "properties": {
+                                            "privateIPAllocationMethod": "Dynamic",
+                                            "publicIPAddress": {
+                                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+                                            },
+                                            "subnet": {
+                                                "id": "[variables('subnetRef')]"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "outputs": {}
+                }
+            }
+        },
+        {
+            "apiVersion": "2018-10-01",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+              "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
+              "[concat('Microsoft.Network/publicIpAddresses/', variables('publicIPAddressName'))]",
+              "[parameters('networkSecurityGroupName')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            }
+                        }
+                    }
+                ],
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+              }
+            }
+        },
+        {
+            "apiVersion": "2019-03-01",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('vmName')]",
+            "location": "[parameters('location')]",
+            "tags": {
+                "Tag1": "Unravel Server"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
+                "[parameters('mysqlServerName')]"
+            ],
+            "plan": {
+                "name": "[variables('imageSku')]",
+                "publisher": "[variables('imagePublisher')]",
+                "product": "[variables('imageOffer')]"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('vmName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('imagePublisher')]",
+                        "offer": "[variables('imageOffer')]",
+                        "sku": "[variables('imageSku')]",
+                        "version": "latest"
+                    },
+                    "dataDisks": [
+                        {
+                            "name": "[variables('dataDisk1Name')]",
+                            "diskSizeGB": "[parameters('vmDataDiskSizeGB')]",
+                            "lun": 0,
+                            "createOption": "Empty"
+                        }
+                    ]
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('vmName'),'/', variables('extensionName'))]",
+            "apiVersion": "2019-07-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": "[split(variables('scriptFileUri'), ' ')]",
+                    "commandToExecute": "[concat(parameters('commandToExecute'), ' ', reference(resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))).fullyQualifiedDomainName, ' ', concat(parameters('administratorLogin'), '@', parameters('mysqlServerName')), ' ', parameters('administratorLoginPassword'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2017-12-01-preview",
+            "location": "[parameters('location')]",
+            "name": "[parameters('mysqlServerName')]",
+            "properties": {
+                "version": "[variables('mysqlVersion')]",
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "storageProfile": {
+                    "storageMB": "[variables('skuSizeMB')]",
+                    "backupRetentionDays": "[parameters('backupRetentionDays')]",
+                    "geoRedundantBackup": "[parameters('geoRedundantBackup')]",
+                    "storageAutoGrow": "[parameters('storageAutoGrow')]"
+                },
+                "sslEnforcement": "Disabled"
+            },
+            "sku": {
+                "name": "[variables('skuName')]",
+                "tier": "[parameters('skuTier')]",
+                "capacity": "[parameters('skuCapacity')]",
+                "size": "[variables('skuSizeMB')]",
+                "family": "[variables('skuFamily')]"
+            },
+            "resources": [
+                {
+                    "name": "[variables('virtualNetworkRuleName')]",
+                    "type": "virtualNetworkRules",
+                    "apiVersion": "2017-12-01",
+                    "properties": {
+                        "ignoreMissingVnetServiceEndpoint": true,
+                        "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetName'))]"
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.DBforMySQL/servers/', parameters('mysqlServerName'))]",
+                        "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]"
+                    ]
+                },
+                {
+                    "name": "[variables('databaseName')]",
+                    "type": "databases",
+                    "apiVersion": "2017-12-01",
+                    "properties": {
+                        "charset": "utf8",
+                        "collation": "utf8_general_ci"
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.DBforMySQL/servers/', parameters('mysqlServerName'))]"
+                    ]
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/innodb_file_per_table')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "ON",
+                        "source": "user-override"
+                    }
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/character_set_server')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "UTF8",
+                        "source": "user-override"
+                    }
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/max_connect_errors')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "2000000000",
+                        "source": "user-override"
+                    }
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/innodb_thread_concurrency')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "20",
+                        "source": "user-override"
+                    }
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/innodb_read_io_threads')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "16",
+                        "source": "user-override"
+                    }
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/innodb_io_capacity')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "4000",
+                        "source": "user-override"
+                    }
+                },
+                {
+                    "type": "Microsoft.DBforMySQL/servers/configurations",
+                    "apiVersion": "2017-12-01-preview",
+                    "name": "[concat(parameters('mysqlServerName'), '/innodb_io_capacity_max')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DBforMySQL/servers', parameters('mysqlServerName'))]"
+                    ],
+                    "properties": {
+                        "value": "4000",
+                        "source": "user-override"
+                    }
+                }
+            ],
+            "tags": "[parameters('tags')]",
+            "type": "Microsoft.DBforMySQL/servers"
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        },
+        "vmSize": {
+            "type": "string",
+            "value": "[parameters('vmSize')]"
+        }
+    }
+}
