@@ -46,7 +46,7 @@ if [[ $? -eq 1 ]] && [[ -e "/dev/sdc" ]]; then
 fi
 
 # install unravel rpm
-/usr/bin/rpm  -U $PACKAGE_LOC/$(basename $RPM_URL)
+/usr/bin/rpm  -U $PACKAGE_LOC/unravel-*.rpm
 
 /usr/bin/sleep 5
 
