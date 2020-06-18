@@ -57,11 +57,11 @@ UN_ROOT_PATH="/usr/local/unravel"
 cd $PACKAGE_LOC
 tar xvzf $PACKAGE_LOC/mysql-connector-java-5.1.47.tar.gz
 JDBC_JAR="$PACKAGE_LOC/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar"
-JDBC_URL="jdbc:mariadb:\/\/${MYSQL_HOST}:3306\/unravel_mysql_prod"
+JDBC_URL="jdbc:mariadb://${MYSQL_HOST}:3306/unravel_mysql_prod"
 if [ -f $JDBC_JAR ];then
     sudo mkdir -p $UN_ROOT_PATH/share/java
     sudo cp $JDBC_JAR $UN_ROOT_PATH/share/java/
-     JDBC_URL="jdbc:mysql:\/\/${MYSQL_HOST}:3306\/unravel_mysql_prod"
+     JDBC_URL="jdbc:mysql://${MYSQL_HOST}:3306/unravel_mysql_prod"
 fi
 
 sudo -u unravel python $UN_ROOT_PATH/install_bin/properties_tracker.py
@@ -77,9 +77,6 @@ echo "com.unraveldata.cluster.type=DB" >> ${UN_PROP_PATH}
 echo "com.unraveldata.python.enabled=false" >> ${UN_PROP_PATH}
 echo "com.unraveldata.tagging.enabled=true" >> ${UN_PROP_PATH}
 
-sed -i -e "s/unravel.jdbc.password=.*/unravel.jdbc.password=${MYSQL_PASS}/g" ${UN_PROP_PATH}
-sed -i -e "s/unravel.jdbc.url=.*/unravel.jdbc.url=${JDBC_URL}/g" ${UN_PROP_PATH}
-sed -i -e "s/unravel.jdbc.username=.*/unravel.jdbc.username=${MYSQL_USER}/g" ${UN_PROP_PATH}
 
 cat <<EOF >> ${UN_PROP_PATH}
 unravel.jdbc.password=${MYSQL_PASS}
