@@ -829,6 +829,7 @@ com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
 com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
 yarn.resourcemanager.webapp.username=$RM_USER
 yarn.resourcemanager.webapp.password=$RM_PASSWORD
+com.unraveldata.kerberos.kinit_scheduler.enabled=false
 EOF
     echo "Kerberos Principal: $KEYTAB_PRINCIPAL"
     echo "Kerberos Keytab: $KEYTAB_PATH"
