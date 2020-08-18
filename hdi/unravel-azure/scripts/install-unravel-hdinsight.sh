@@ -1,6 +1,7 @@
 MYSQL_HOST=$1
 MYSQL_USER=$2
 MYSQL_PASS=$3
+MOTD_URI=$4
 
 PACKAGE_LOC="/unravel"
 
@@ -8,7 +9,7 @@ if [ ! -d $PACKAGE_LOC ]; then
     mkdir -p $PACKAGE_LOC
 fi
 
-cp -f motd.sh /etc/profile.d/motd.sh
+curl -k -o /etc/profile.d/motd.sh $MOTD_URI
 
 # Prepare the VM for unravel rpm install
 /usr/bin/systemctl enable ntpd
