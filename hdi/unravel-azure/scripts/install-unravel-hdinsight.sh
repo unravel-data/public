@@ -8,6 +8,8 @@ if [ ! -d $PACKAGE_LOC ]; then
     mkdir -p $PACKAGE_LOC
 fi
 
+cp -f motd.sh /etc/profile.d/motd.sh
+
 # Prepare the VM for unravel rpm install
 /usr/bin/systemctl enable ntpd
 /usr/bin/systemctl start ntpd
