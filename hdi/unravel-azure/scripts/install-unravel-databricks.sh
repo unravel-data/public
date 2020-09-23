@@ -52,6 +52,7 @@ fi
 
 sudo chkconfig unravel_pg off
 sudo chkconfig unravel_cw off
+sudo chkconfig unravel_aws off
 
 UN_ROOT_PATH="/usr/local/unravel"
 cd $PACKAGE_LOC
@@ -67,7 +68,7 @@ fi
 sudo -u unravel python $UN_ROOT_PATH/install_bin/properties_tracker.py
 
 # Update Unravel Lic Key into the unravel.properties file
-# Obtain a valid unravel Lic Key file ; the following is just a fake one
+# Obtain a valid unravel Lic Key the following is just a fake one
 UN_PROP_PATH='/usr/local/unravel/etc/unravel.properties'
 echo "com.unraveldata.lic=1p6ed4s492012j5rb242rq3x3w702z1l455g501z2z4o2o4lo675555u3h" >> ${UN_PROP_PATH}
 
