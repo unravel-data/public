@@ -3437,8 +3437,10 @@ def main():
     sleep(35)
     print('Checking Ambari Operations')
     while(get_latest_req()['request_status'] not in ['COMPLETED','FAILED','ABORTED']
-          and get_latest_req()['request_context'] != 'run_customscriptaction'):
+          and not re.search('unravel_hdi_spark_bootstrap|run_customscriptaction', get_latest_req()['request_context'])
+    ):
         print('Operations Status:' + get_latest_req()['request_status'])
+        print('Operation Context:' + get_latest_req()['request_context'])
         sleep(60)
     print('All Operations completed, Comparing configs')
 
