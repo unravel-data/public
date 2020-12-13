@@ -2995,6 +2995,7 @@ argv.password = base64.b64decode(base64pwd)
 argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.cluster_name
 unravel_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
+argv.lr_port = argv.unravel.split(':')[1]
 delim = argv.unravel.find('.')
 argv.unravel_lr = argv.unravel[:delim] + '.lr' + argv.unravel[delim:]
 argv.spark_ver = argv.spark_ver.split('.')
