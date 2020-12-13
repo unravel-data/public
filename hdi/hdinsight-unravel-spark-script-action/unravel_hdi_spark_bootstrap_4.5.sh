@@ -108,17 +108,19 @@ function check_connectivity() {
 #  - LRHOST                                                                                   #
 ###############################################################################################
 function setup_restserver() {
-  if [ -z "$UNRAVEL_RESTSERVER_HOST_AND_PORT" ]; then
-    if [ -z "$LRHOST" ]; then
-      export UNRAVEL_HOST="${UNRAVEL_SERVER%%:*}"
+  export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
 
-      # UNRAVEL_RESTSERVER_HOST_AND_PORT is the host and port of the REST SERVER
-      local UNRAVEL_RESTSERVER_PORT=4043
-      export UNRAVEL_RESTSERVER_HOST_AND_PORT="${UNRAVEL_HOST}:${UNRAVEL_RESTSERVER_PORT}"
-    else
-      export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
-    fi
-  fi
+  # if [ -z "$UNRAVEL_RESTSERVER_HOST_AND_PORT" ]; then
+  #   if [ -z "$LRHOST" ]; then
+  #     export UNRAVEL_HOST="${UNRAVEL_SERVER%%:*}"
+
+  #     # UNRAVEL_RESTSERVER_HOST_AND_PORT is the host and port of the REST SERVER
+  #     local UNRAVEL_RESTSERVER_PORT=4043
+  #     export UNRAVEL_RESTSERVER_HOST_AND_PORT="${UNRAVEL_HOST}:${UNRAVEL_RESTSERVER_PORT}"
+  #   else
+  #     export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
+  #   fi
+  # fi
 
   if is_lr_reachable; then
     echo "Using Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT" | tee -a ${OUT_FILE}
@@ -2993,6 +2995,8 @@ argv.password = base64.b64decode(base64pwd)
 argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.cluster_name
 unravel_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
+delim = argv.unravel.find('.')
+argv.unravel_lr = argv.unravel[:delim] + '.lr' + argv.unravel[delim:]
 argv.spark_ver = argv.spark_ver.split('.')
 argv.hive_ver = argv.hive_ver.split('.')
 if argv.principal:
@@ -3404,22 +3408,24 @@ if compare_versions(unravel_version, "4.5.0.0") >= 0:
 agent_path = "/usr/local/unravel-agent"
 spark_defaults_configs={
                         'spark.eventLog.dir': [hdfs_url],
-                        'spark.unravel.server.hostport': ['{0}:{1}', argv.unravel, argv.lr_port],
+                        'spark.unravel.server.hostport': ['{0}:{1}', argv.unravel_lr, argv.lr_port],
                         'spark.driver.extraJavaOptions': [
-                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=driver{1} -Dunravel.metrics.factor={4}',
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=driver{1} -Dunravel.metrics.factor={4} -Dcom.unraveldata.client.resolve.hostname={5}',
                             agent_path,
                             ",clusterId=" + argv.cluster_name,
                             argv.spark_ver[0],
                             argv.spark_ver[1],
                             argv.metrics_factor,
+                            "false"
                            ],
                         'spark.executor.extraJavaOptions': [
-                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4}',
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4} -Dcom.unraveldata.client.resolve.hostname={5}',
                             agent_path,
                             ",clusterId=" + argv.cluster_name,
                             argv.spark_ver[0],
                             argv.spark_ver[1],
-                            argv.metrics_factor
+                            argv.metrics_factor,
+                            "false"
                         ]
 }
 
