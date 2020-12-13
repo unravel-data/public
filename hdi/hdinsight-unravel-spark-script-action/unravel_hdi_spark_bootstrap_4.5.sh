@@ -1735,7 +1735,8 @@ function install() {
                 ;;
             "unravel-receiver" | "--unravel-receiver" )
                 LRHOST=$1
-                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
+#                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
+                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:80
                 export LRHOST
                 shift
                 ;;
@@ -2975,7 +2976,7 @@ import hdinsight_common.ClusterManifestParser as ClusterManifestParser
 parser = argparse.ArgumentParser()
 parser.add_argument('-host', '--unravel-host', help='Unravel Server hostname', dest='unravel', required=True)
 parser.add_argument('-protocol', '--unravel-protocol', help='Unravel Server protocol', default="http")
-parser.add_argument('--lr-port', help='Unravel Log receiver port', default='4043')
+parser.add_argument('--lr-port', help='Unravel Log receiver port', default='80')
 parser.add_argument('--all', help='enable all Unravel Sensor', action='store_true')
 parser.add_argument('-user', '--username', help='Ambari login username')
 parser.add_argument('-pass', '--password', help='Ambari login password')
