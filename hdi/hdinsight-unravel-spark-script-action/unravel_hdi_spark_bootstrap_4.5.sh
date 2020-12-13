@@ -726,7 +726,7 @@ function stop {
     for i in {1..90}
     do
         if ! is_running; then
-			break
+      break
         fi
         echo -n "."
         sleep 1
@@ -800,11 +800,20 @@ function gen_sensor_properties() {
 # chunk-size=20
 cluster-type=hdi
 cluster-id=`echo $CLUSTER_ID`
-unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
+#unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
+unravel-server=`echo $UNRAVEL_SERVER`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
 spark-conf-path=$spark_conf_path
+EOF
+
+  cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+#######################################################
+# unravel.properties settings                         #
+# - modify the settings and restart the service       #
+#######################################################
+lr_client.resolve_hostname=false
 EOF
 }
 
@@ -1379,7 +1388,8 @@ function resolve_spark_version() {
 ###############################################################################################
 function resolve_agent_args() {
     if [ "$SPARK_APP_LOAD_MODE" != "BATCH" ]; then
-        local base_agent="-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
+#        local base_agent="-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
+        local base_agent="-Dcom.unraveldata.client.resolve.hostname=false -Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
         export DRIVER_AGENT_ARGS="${base_agent},config=driver"
         export EXECUTOR_AGENT_ARGS="${base_agent},config=executor"
     fi
@@ -2442,9 +2452,9 @@ function set_sparkdefaults_prop() {
   if [[ $updateResult != *"Tag:version"* ]] && [[ $updateResult == *"[ERROR]"* ]]; then
     updateResult=$(bash $AMBARICONFIGS_SH -u $AMBARI_USR -p $AMBARI_PWD set $AMBARI_HOST $CLUSTER_ID spark2-defaults "$key" "$val" 2>/dev/null)
     if [[ $updateResult != *"Tag:version"* ]] && [[ $updateResult == *"[ERROR]"* ]]; then
-	echo "[ERROR] Failed to update spark-defaults" | tee -a ${OUT_FILE}
-	echo $updateResult | tee -a ${OUT_FILE}
-	return 1
+  echo "[ERROR] Failed to update spark-defaults" | tee -a ${OUT_FILE}
+  echo $updateResult | tee -a ${OUT_FILE}
+  return 1
     fi
   fi
 }
