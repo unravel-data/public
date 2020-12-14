@@ -2980,7 +2980,7 @@ argv.password = base64.b64decode(base64pwd)
 argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.cluster_name
 unravel_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
-argv.lr_port = argv.unravel.split(':')[1]
+argv.lr_port = 80
 delim = argv.unravel.find('.')
 argv.unravel_lr = argv.unravel[:delim] + '.lr' + argv.unravel[delim:]
 argv.spark_ver = argv.spark_ver.split('.')
@@ -3470,14 +3470,14 @@ EOF
         SECURE_ARGS="--esp --principal $KEYTAB_PRINCIPAL"
    fi
    if [ "$UNINSTALL" == True ]; then
-        sudo python /tmp/unravel/final_check.py --uninstall --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} ${SECURE_ARGS}
+        sudo python /tmp/unravel/final_check.py --uninstall --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
         if [ -e /etc/init.d/unravel_es ]; then
             es_uninstall
         fi
    elif [ "$ENABLE_ALL_SENSOR" == True ]; then
-        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all ${SECURE_ARGS}
+        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
    else
-        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS}
+        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
     fi
 }
 
