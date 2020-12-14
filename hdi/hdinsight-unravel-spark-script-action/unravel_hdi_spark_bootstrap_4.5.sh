@@ -351,7 +351,7 @@ function generate_snippet() {
 
 <property>
   <name>com.unraveldata.host</name>
-  <value>${UNRAVEL_HOST}</value>
+  <value>${LRHOST}</value>
   <description>Unravel hive-hook processing host</description>
 </property>
 
@@ -803,7 +803,7 @@ function gen_sensor_properties() {
 cluster-type=hdi
 cluster-id=`echo $CLUSTER_ID`
 #unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
-unravel-server=`echo $UNRAVEL_SERVER`
+unravel-server=`echo $LRHOST`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
@@ -2257,7 +2257,9 @@ function uninstall_hh_aux_jars() {
 
 function install_hooks() {
   set_hivesite_prop "com.unraveldata.hive.hook.tcp" "true"
-  set_hivesite_prop "com.unraveldata.host" "${UNRAVEL_HOST}"
+  set_hivesite_prop "com.unraveldata.hive.hook.tcp" "true"
+#  set_hivesite_prop "com.unraveldata.host" "${UNRAVEL_HOST}"
+  set_hivesite_prop "com.unraveldata.host" "${LRHOST}"
   set_hivesite_prop "com.unraveldata.hive.hdfs.dir" "/user/unravel/HOOK_RESULT_DIR"
   set_hivesite_prop "hive.exec.driver.run.hooks" "com.unraveldata.dataflow.hive.hook.HiveDriverHook"
   set_hivesite_prop "hive.exec.pre.hooks" "com.unraveldata.dataflow.hive.hook.HivePreHook"
