@@ -108,17 +108,7 @@ function check_connectivity() {
 #  - LRHOST                                                                                   #
 ###############################################################################################
 function setup_restserver() {
-  if [ -z "$UNRAVEL_RESTSERVER_HOST_AND_PORT" ]; then
-    if [ -z "$LRHOST" ]; then
-      export UNRAVEL_HOST="${UNRAVEL_SERVER%%:*}"
-
-      # UNRAVEL_RESTSERVER_HOST_AND_PORT is the host and port of the REST SERVER
-      local UNRAVEL_RESTSERVER_PORT=4043
-      export UNRAVEL_RESTSERVER_HOST_AND_PORT="${UNRAVEL_HOST}:${UNRAVEL_RESTSERVER_PORT}"
-    else
-      export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
-    fi
-  fi
+  export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
 
   if is_lr_reachable; then
     echo "Using Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT" | tee -a ${OUT_FILE}
@@ -726,7 +716,7 @@ function stop {
     for i in {1..90}
     do
         if ! is_running; then
-			break
+      break
         fi
         echo -n "."
         sleep 1
@@ -800,11 +790,18 @@ function gen_sensor_properties() {
 # chunk-size=20
 cluster-type=hdi
 cluster-id=`echo $CLUSTER_ID`
-unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
+unravel-server=`echo $LRHOST`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
 spark-conf-path=$spark_conf_path
+EOF
+  cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+#######################################################
+# unravel.properties settings                         #
+# - modify the settings and restart the service       #
+#######################################################
+lr_client.resolve_hostname=false
 EOF
 }
 
@@ -2442,9 +2439,9 @@ function set_sparkdefaults_prop() {
   if [[ $updateResult != *"Tag:version"* ]] && [[ $updateResult == *"[ERROR]"* ]]; then
     updateResult=$(bash $AMBARICONFIGS_SH -u $AMBARI_USR -p $AMBARI_PWD set $AMBARI_HOST $CLUSTER_ID spark2-defaults "$key" "$val" 2>/dev/null)
     if [[ $updateResult != *"Tag:version"* ]] && [[ $updateResult == *"[ERROR]"* ]]; then
-	echo "[ERROR] Failed to update spark-defaults" | tee -a ${OUT_FILE}
-	echo $updateResult | tee -a ${OUT_FILE}
-	return 1
+  echo "[ERROR] Failed to update spark-defaults" | tee -a ${OUT_FILE}
+  echo $updateResult | tee -a ${OUT_FILE}
+  return 1
     fi
   fi
 }
@@ -2983,6 +2980,9 @@ argv.password = base64.b64decode(base64pwd)
 argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.cluster_name
 unravel_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
+argv.lr_port = argv.unravel.split(':')[1]
+delim = argv.unravel.find('.')
+argv.unravel_lr = argv.unravel[:delim] + '.lr' + argv.unravel[delim:]
 argv.spark_ver = argv.spark_ver.split('.')
 argv.hive_ver = argv.hive_ver.split('.')
 if argv.principal:
@@ -3394,22 +3394,24 @@ if compare_versions(unravel_version, "4.5.0.0") >= 0:
 agent_path = "/usr/local/unravel-agent"
 spark_defaults_configs={
                         'spark.eventLog.dir': [hdfs_url],
-                        'spark.unravel.server.hostport': ['{0}:{1}', argv.unravel, argv.lr_port],
+                        'spark.unravel.server.hostport': ['{0}:{1}', argv.unravel_lr, argv.lr_port],
                         'spark.driver.extraJavaOptions': [
-                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=driver{1} -Dunravel.metrics.factor={4}',
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=driver{1} -Dunravel.metrics.factor={4} -Dcom.unraveldata.client.resolve.hostname={5}',
                             agent_path,
                             ",clusterId=" + argv.cluster_name,
                             argv.spark_ver[0],
                             argv.spark_ver[1],
                             argv.metrics_factor,
+                            "false"
                            ],
                         'spark.executor.extraJavaOptions': [
-                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4}',
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4} -Dcom.unraveldata.client.resolve.hostname={5}',
                             agent_path,
                             ",clusterId=" + argv.cluster_name,
                             argv.spark_ver[0],
                             argv.spark_ver[1],
-                            argv.metrics_factor
+                            argv.metrics_factor,
+                            "false"
                         ]
 }
 
