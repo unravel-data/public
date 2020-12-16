@@ -110,18 +110,6 @@ function check_connectivity() {
 function setup_restserver() {
   export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
 
-  # if [ -z "$UNRAVEL_RESTSERVER_HOST_AND_PORT" ]; then
-  #   if [ -z "$LRHOST" ]; then
-  #     export UNRAVEL_HOST="${UNRAVEL_SERVER%%:*}"
-
-  #     # UNRAVEL_RESTSERVER_HOST_AND_PORT is the host and port of the REST SERVER
-  #     local UNRAVEL_RESTSERVER_PORT=4043
-  #     export UNRAVEL_RESTSERVER_HOST_AND_PORT="${UNRAVEL_HOST}:${UNRAVEL_RESTSERVER_PORT}"
-  #   else
-  #     export UNRAVEL_RESTSERVER_HOST_AND_PORT="${LRHOST}"
-  #   fi
-  # fi
-
   if is_lr_reachable; then
     echo "Using Unravel REST Server at $UNRAVEL_RESTSERVER_HOST_AND_PORT" | tee -a ${OUT_FILE}
   else
@@ -802,14 +790,12 @@ function gen_sensor_properties() {
 # chunk-size=20
 cluster-type=hdi
 cluster-id=`echo $CLUSTER_ID`
-#unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
-unravel-server=`echo $UNRAVEL_SERVER`
+unravel-server=`echo $LRHOST`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
 spark-conf-path=$spark_conf_path
 EOF
-
   cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
 #######################################################
 # unravel.properties settings                         #
@@ -1390,8 +1376,7 @@ function resolve_spark_version() {
 ###############################################################################################
 function resolve_agent_args() {
     if [ "$SPARK_APP_LOAD_MODE" != "BATCH" ]; then
-#        local base_agent="-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
-        local base_agent="-Dcom.unraveldata.client.resolve.hostname=false -Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
+        local base_agent="-Dcom.unraveldata.client.rest.shutdown.ms=300 -javaagent:${AGENT_JARS}/btrace-agent.jar=libs=spark-${SPARK_VER_X}.${SPARK_VER_Y}"
         export DRIVER_AGENT_ARGS="${base_agent},config=driver"
         export EXECUTOR_AGENT_ARGS="${base_agent},config=executor"
     fi
@@ -3395,6 +3380,7 @@ hive_site_configs = {'hive.exec.driver.run.hooks': ['com.unraveldata.dataflow.hi
                     'hive.exec.post.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HivePostHook'],
                     'hive.exec.failure.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HiveFailHook'],
                     'com.unraveldata.cluster.id': [argv.cluster_name],
+                    'com.unraveldata.client.resolve.hostname'=['false'],
                     }
 # New Hive Hook Class Name for 4.5.0.0
 unravel_version = get_unravel_ver(argv.unravel_protocol)
@@ -3438,14 +3424,14 @@ if hdfs_url.startswith('adl'):
 
 mapred_site_configs = None
 if argv.all:
-    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
+    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor],
                         'mapreduce.task.profile': ['true'],
                         'mapreduce.task.profile.maps': ['0-5'],
                         'mapreduce.task.profile.reduces': ['0-5'],
-                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]}
+                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"]}
 tez_site_configs = {
-                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name],
-                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]
+                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"],
+                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"]
                     }
 if argv.esp and argv.principal:
     tez_site_configs['tez.am.view-acls'] = [argv.principal]
@@ -3485,14 +3471,14 @@ EOF
         SECURE_ARGS="--esp --principal $KEYTAB_PRINCIPAL"
    fi
    if [ "$UNINSTALL" == True ]; then
-        sudo python /tmp/unravel/final_check.py --uninstall --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} ${SECURE_ARGS}
+        sudo python /tmp/unravel/final_check.py --uninstall --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
         if [ -e /etc/init.d/unravel_es ]; then
             es_uninstall
         fi
    elif [ "$ENABLE_ALL_SENSOR" == True ]; then
-        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all ${SECURE_ARGS}
+        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
    else
-        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS}
+        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
     fi
 }
 
