@@ -339,7 +339,7 @@ function generate_snippet() {
 
 <property>
   <name>com.unraveldata.host</name>
-  <value>${UNRAVEL_HOST}</value>
+  <value>${LRHOST}</value>
   <description>Unravel hive-hook processing host</description>
 </property>
 
@@ -790,6 +790,10 @@ function gen_sensor_properties() {
 # chunk-size=20
 cluster-type=hdi
 cluster-id=`echo $CLUSTER_ID`
+<<<<<<< HEAD
+=======
+#unravel-server=`echo $UNRAVEL_SERVER | sed -e "s/:.*/:4043/g"`
+>>>>>>> 1c8af56b95b6d8ae27fac02d01df87b517dc3a68
 unravel-server=`echo $LRHOST`
 am-polling=$AM_POLLING
 enable-aa=$ENABLE_AA
@@ -1720,7 +1724,8 @@ function install() {
                 ;;
             "unravel-receiver" | "--unravel-receiver" )
                 LRHOST=$1
-                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
+#                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
+                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:80
                 export LRHOST
                 shift
                 ;;
@@ -2241,7 +2246,9 @@ function uninstall_hh_aux_jars() {
 
 function install_hooks() {
   set_hivesite_prop "com.unraveldata.hive.hook.tcp" "true"
-  set_hivesite_prop "com.unraveldata.host" "${UNRAVEL_HOST}"
+  set_hivesite_prop "com.unraveldata.hive.hook.tcp" "true"
+#  set_hivesite_prop "com.unraveldata.host" "${UNRAVEL_HOST}"
+  set_hivesite_prop "com.unraveldata.host" "${LRHOST}"
   set_hivesite_prop "com.unraveldata.hive.hdfs.dir" "/user/unravel/HOOK_RESULT_DIR"
   set_hivesite_prop "hive.exec.driver.run.hooks" "com.unraveldata.dataflow.hive.hook.HiveDriverHook"
   set_hivesite_prop "hive.exec.pre.hooks" "com.unraveldata.dataflow.hive.hook.HivePreHook"
@@ -2960,7 +2967,7 @@ import hdinsight_common.ClusterManifestParser as ClusterManifestParser
 parser = argparse.ArgumentParser()
 parser.add_argument('-host', '--unravel-host', help='Unravel Server hostname', dest='unravel', required=True)
 parser.add_argument('-protocol', '--unravel-protocol', help='Unravel Server protocol', default="http")
-parser.add_argument('--lr-port', help='Unravel Log receiver port', default='4043')
+parser.add_argument('--lr-port', help='Unravel Log receiver port', default='80')
 parser.add_argument('--all', help='enable all Unravel Sensor', action='store_true')
 parser.add_argument('-user', '--username', help='Ambari login username')
 parser.add_argument('-pass', '--password', help='Ambari login password')
@@ -3424,6 +3431,7 @@ if hdfs_url.startswith('adl'):
 
 mapred_site_configs = None
 if argv.all:
+<<<<<<< HEAD
     mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor],
                         'mapreduce.task.profile': ['true'],
                         'mapreduce.task.profile.maps': ['0-5'],
@@ -3432,6 +3440,16 @@ if argv.all:
 tez_site_configs = {
                     'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"],
                     'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"]
+=======
+    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={4}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, "false"],
+                        'mapreduce.task.profile': ['true'],
+                        'mapreduce.task.profile.maps': ['0-5'],
+                        'mapreduce.task.profile.reduces': ['0-5'],
+                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={4}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name], "false"}
+tez_site_configs = {
+                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={4}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"],
+                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={4}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"]
+>>>>>>> 1c8af56b95b6d8ae27fac02d01df87b517dc3a68
                     }
 if argv.esp and argv.principal:
     tez_site_configs['tez.am.view-acls'] = [argv.principal]
