@@ -3411,7 +3411,7 @@ spark_defaults_configs={
                             argv.spark_ver[0],
                             argv.spark_ver[1],
                             argv.metrics_factor,
-                            "false"
+                            'false'
                            ],
                         'spark.executor.extraJavaOptions': [
                             '-javaagent:{0}/jars/btrace-agent.jar=libs=spark-{2}.{3},config=executor{1} -Dunravel.metrics.factor={4} -Dcom.unraveldata.client.resolve.hostname={5}',
@@ -3420,7 +3420,7 @@ spark_defaults_configs={
                             argv.spark_ver[0],
                             argv.spark_ver[1],
                             argv.metrics_factor,
-                            "false"
+                            'false'
                         ]
 }
 
@@ -3432,14 +3432,14 @@ if hdfs_url.startswith('adl'):
 
 mapred_site_configs = None
 if argv.all:
-    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={4}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, "false"],
+    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={4}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, 'false'],
                         'mapreduce.task.profile': ['true'],
                         'mapreduce.task.profile.maps': ['0-5'],
                         'mapreduce.task.profile.reduces': ['0-5'],
-                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"]}
+                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, 'false']}
 tez_site_configs = {
-                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"],
-                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, "false"]
+                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, 'false'],
+                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}', agent_path, argv.unravel_lr, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name, 'false']
                     }
 if argv.esp and argv.principal:
     tez_site_configs['tez.am.view-acls'] = [argv.principal]
