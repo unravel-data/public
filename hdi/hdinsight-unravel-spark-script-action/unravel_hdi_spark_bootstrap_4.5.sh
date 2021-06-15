@@ -796,13 +796,26 @@ enable-aa=$ENABLE_AA
 hive-id-cache=$HIVE_ID_CACHE
 spark-conf-path=$spark_conf_path
 EOF
-  cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+UNRAVEL_PROPERTIES=${UNRAVEL_PROPERTIES}$(cat <<EOF
+
 #######################################################
 # unravel.properties settings                         #
 # - modify the settings and restart the service       #
 #######################################################
 lr_client.resolve_hostname=false
+
 EOF
+)
+
+if [[ $LR_PORT -eq 443 ]]; then
+  UNRAVEL_PROPERTIES=${UNRAVEL_PROPERTIES}$(cat <<EOF
+
+lr_client.ssl=true
+
+EOF
+)
+fi
+
 }
 
 ###############################################################################################
@@ -825,14 +838,16 @@ fi
 id -u ${UNRAVEL_ES_USER} &>/dev/null || useradd ${UNRAVEL_ES_USER}
 setfacl -m user:${UNRAVEL_ES_USER}:r-- $KEYTAB_PATH
 mkdir -p /usr/local/unravel_es/etc
-cat <<EOF > /usr/local/unravel_es/etc/unravel.properties
+UNRAVEL_PROPERTIES=${UNRAVEL_PROPERTIES}$(cat <<EOF
+
 com.unraveldata.kerberos.principal=$KEYTAB_PRINCIPAL
 com.unraveldata.kerberos.keytab.path=$KEYTAB_PATH
 yarn.resourcemanager.webapp.username=$RM_USER
 yarn.resourcemanager.webapp.password=$RM_PASSWORD
 com.unraveldata.kerberos.kinit_scheduler.enabled=false
+
 EOF
-cat /usr/local/unravel_es/etc/unravel.properties
+)
 }
 
 ###############################################################################################
@@ -896,6 +911,8 @@ function es_install() {
   # Generate /usr/local/unravel_es/etc/unravel_es.properties. We will ignore the
   # template (unravel_es.properties.template) that ships with the RPM.
   gen_sensor_properties
+  echo "$UNRAVEL_PROPERTIES" > /usr/local/unravel_es/etc/unravel.properties
+  cat /usr/local/unravel_es/etc/unravel.properties
 
   echo "running unravel_es as: $UNRAVEL_ES_USER"
   echo "running unravel_es as: $UNRAVEL_ES_GROUP"
@@ -1656,6 +1673,7 @@ function install() {
         install_usage
         exit 0
     fi
+    JAVA_HOME=$(jrunscript -e 'java.lang.System.out.println(java.lang.System.getProperty("java.home"));')
 
     WGET=$(which wget 2>/dev/null)
     UNZIP=$(which unzip 2>/dev/null)
@@ -1673,6 +1691,7 @@ function install() {
     DFS_PATH='/tmp/unravel-sensors/'
     SMOKE_KEYTAB_PATH='/etc/security/keytabs/smokeuser.headless.keytab'
     UNRAVEL_PROTOCOL='http'
+    LR_PORT=80
     # Upload sensor files to DFS backup only when 1. cluster is not secure or 2. kinit return 0
     UPLOAD_SENSOR_TO_DFS=false
 
@@ -1713,6 +1732,14 @@ function install() {
                   echo "match ${BASH_REMATCH}"
                   UNRAVEL_PROTOCOL=${BASH_REMATCH[1]}
                   UNRAVEL_SERVER=${BASH_REMATCH[2]}
+                  echo "protocol: ${UNRAVEL_PROTOCOL} unravel server ${UNRAVEL_SERVER}"
+                  if [[ $UNRAVEL_SERVER != *":"* ]]; then
+                    if [[ $UNRAVEL_PROTOCOL == "https" ]]; then
+                      UNRAVEL_SERVER=${UNRAVEL_SERVER}:443
+                    else
+                      UNRAVEL_SERVER=${UNRAVEL_SERVER}:80
+                    fi
+                  fi
                 fi
                 [[ $UNRAVEL_SERVER != *":"* ]] && UNRAVEL_SERVER=${UNRAVEL_SERVER}:3000
                 export UNRAVEL_SERVER && export UNRAVEL_PROTOCOL
@@ -1720,8 +1747,16 @@ function install() {
                 ;;
             "unravel-receiver" | "--unravel-receiver" )
                 LRHOST=$1
-                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:4043
+                LR_REGEX='^(.*):([0-9]{1,5})'
+                if [[ $LRHOST =~ $LR_REGEX ]]; then
+                  echo "match ${BASH_REMATCH}"
+                  LRHOST=${BASH_REMATCH[1]}
+                  LR_PORT=${BASH_REMATCH[2]}
+                  echo "LR host: ${LRHOST}, LR port: ${LR_PORT}"
+                fi
+                [[ $LRHOST != *":"* ]] && LRHOST=${LRHOST}:${LR_PORT}
                 export LRHOST
+                export LR_PORT
                 shift
                 ;;
             "hive-version" | "--hive-version" )
@@ -1808,6 +1843,15 @@ function install() {
 
     # detect the cluster and settings
     isFunction cluster_detect && cluster_detect
+
+    # Import LR Certificate
+    if [[ $LR_PORT -eq 443 ]]; then
+      get_lr_cert
+      ca_cert_path=$(find $JAVA_HOME -name cacerts)
+      alias_name=$(echo $LRHOST | awk -F. '{print $1}')
+      echo "Import $CERT_FILE to $ca_cert_path as alias $alias_name"
+      echo "yes" | keytool -import -trustcacerts -file $CERT_FILE -keystore $ca_cert_path -storepass changeit -alias "$alias_name"
+    fi
 
     # construct default principal name
     if [ -z $KEYTAB_PRINCIPAL ]; then
@@ -2950,7 +2994,7 @@ function final_check(){
     cat << EOF > "/tmp/unravel/final_check.py"
 #!/usr/bin/env python
 #v1.1.8
-import urllib2
+import urllib2, ssl
 from subprocess import call, check_output
 import json, argparse, re, base64
 from time import sleep
@@ -2960,7 +3004,7 @@ import hdinsight_common.ClusterManifestParser as ClusterManifestParser
 parser = argparse.ArgumentParser()
 parser.add_argument('-host', '--unravel-host', help='Unravel Server hostname', dest='unravel', required=True)
 parser.add_argument('-protocol', '--unravel-protocol', help='Unravel Server protocol', default="http")
-parser.add_argument('--lr-port', help='Unravel Log receiver port', default='4043')
+parser.add_argument('--lr-port', help='Unravel Log receiver port', type=int, default=4043)
 parser.add_argument('--all', help='enable all Unravel Sensor', action='store_true')
 parser.add_argument('-user', '--username', help='Ambari login username')
 parser.add_argument('-pass', '--password', help='Ambari login password')
@@ -2980,7 +3024,9 @@ argv.password = base64.b64decode(base64pwd)
 argv.cluster_name = ClusterManifestParser.parse_local_manifest().deployment.cluster_name
 unravel_server = argv.unravel
 argv.unravel = argv.unravel.split(':')[0]
-argv.lr_port = 80
+argv.lr_ssl = False
+if argv.lr_port == 443:
+    argv.lr_ssl = True
 delim = argv.unravel.find('.')
 argv.unravel_lr = argv.unravel[:delim] + '.lr' + argv.unravel[delim:]
 argv.spark_ver = argv.spark_ver.split('.')
@@ -3132,7 +3178,7 @@ def check_mapred_site_configs(uninstall=False):
         print('\nUnravel mapred-site configs correct')
     else:
         for key, val in mapred_site_configs.iteritems():
-            prop_regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*')
+            prop_regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*', 'false|true')
             if uninstall:
                 if mapred_site['properties'].get(key, None) and re.search(prop_regex, mapred_site['properties'][key]):
                     print('\n\nmapred-site config {0} found, removing'.format(key))
@@ -3213,7 +3259,7 @@ def check_tez_site_configs(uninstall=False):
     make_change = False
     for key, val in tez_site_configs.iteritems():
         if uninstall:
-            regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*')
+            regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*', 'false|true')
             if key == "tez.am.view-acls" and val[0] in tez_site['properties'][key]:
                 print('Unravel TEZ config {0} found, removing'.format(key))
                 item = tez_site['properties'][key].split(',')
@@ -3226,7 +3272,7 @@ def check_tez_site_configs(uninstall=False):
                                prop_regex='\s?' + regex)
                 make_change = True
         else:
-            prop_regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*')
+            prop_regex = get_prop_regex(val, '.*?', '.*?', '[0-9]{1,5}', '[0-9]{1,5}', r'[,a-zA-Z\d=-]*', 'false|true')
             if get_prop_val(val) in tez_site['properties'][key]:
                 print(key + ' is correct')
             elif key == "tez.am.view-acls":
@@ -3272,7 +3318,7 @@ def get_unravel_ver(protocol='http'):
     """
     try:
         req = urllib2.Request('{1}://{0}/version.txt'.format(unravel_server, protocol))
-        res = urllib2.urlopen(req)
+        res = urllib2.urlopen(req, context=ssl._create_unverified_context())
         content = res.read()
         ver_regex = 'UNRAVEL_VERSION=([45].[0-9]+.[0-9]+.[0-9]+)'
         if re.search(ver_regex, content):
@@ -3375,11 +3421,13 @@ hadoop_env_content = ['export HADOOP_CLASSPATH=\${{HADOOP_CLASSPATH}}:/usr/local
 hive_site_configs = {'hive.exec.driver.run.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HiveDriverHook'],
                     'com.unraveldata.hive.hdfs.dir': ['/user/unravel/HOOK_RESULT_DIR'],
                     'com.unraveldata.hive.hook.tcp': ['true'],
-                    'com.unraveldata.host': [argv.unravel],
+                    'com.unraveldata.host': [argv.unravel_lr],
                     'hive.exec.pre.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HivePreHook'],
                     'hive.exec.post.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HivePostHook'],
                     'hive.exec.failure.hooks': ['com.unraveldata.dataflow.hive.hook.{0}', 'HiveFailHook'],
                     'com.unraveldata.cluster.id': [argv.cluster_name],
+                    'com.unraveldata.lr_client.resolve_hostname': ['false'],
+                    'com.unraveldata.port': [argv.lr_port]
                     }
 # New Hive Hook Class Name for 4.5.0.0
 unravel_version = get_unravel_ver(argv.unravel_protocol)
@@ -3423,17 +3471,71 @@ if hdfs_url.startswith('adl'):
 
 mapred_site_configs = None
 if argv.all:
-    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor],
+    mapred_site_configs = {'yarn.app.mapreduce.am.command-opts':
+                               [
+                                   '-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}',
+                                    agent_path,
+                                    argv.unravel_lr,
+                                    argv.lr_port,
+                                    argv.metrics_factor,
+                                   ",clusterId=" + argv.cluster_name,
+                                    'false'
+                               ],
                         'mapreduce.task.profile': ['true'],
                         'mapreduce.task.profile.maps': ['0-5'],
                         'mapreduce.task.profile.reduces': ['0-5'],
-                        'mapreduce.task.profile.params': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]}
+                        'mapreduce.task.profile.params':
+                               [
+                                   '-javaagent:{0}/jars/btrace-agent.jar=libs=mr{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}',
+                                   agent_path,
+                                   argv.unravel_lr,
+                                   argv.lr_port,
+                                   argv.metrics_factor,
+                                   ",clusterId=" + argv.cluster_name,
+                                   'false'
+                               ]
+    }
 tez_site_configs = {
-                    'tez.am.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name],
-                    'tez.task.launch.cmd-opts': ['-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3}', agent_path, argv.unravel, argv.lr_port, argv.metrics_factor, ",clusterId=" + argv.cluster_name]
+                    'tez.am.launch.cmd-opts':
+                        [
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}',
+                            agent_path,
+                            argv.unravel_lr,
+                            argv.lr_port,
+                            argv.metrics_factor,
+                            ",clusterId=" + argv.cluster_name,
+                            'false'
+                        ],
+                    'tez.task.launch.cmd-opts':
+                        [
+                            '-javaagent:{0}/jars/btrace-agent.jar=libs=mr,config=tez{4} -Dunravel.server.hostport={1}:{2} -Dunravel.metrics.factor={3} -Dcom.unraveldata.client.resolve.hostname={5}',
+                            agent_path,
+                            argv.unravel_lr,
+                            argv.lr_port,
+                            argv.metrics_factor,
+                            ",clusterId=" + argv.cluster_name,
+                            'false'
+                        ]
                     }
 if argv.esp and argv.principal:
     tez_site_configs['tez.am.view-acls'] = [argv.principal]
+
+if argv.lr_ssl:
+    hive_site_configs['com.unraveldata.hive.hook.use.ssl'] = ['true']
+    btrace_ssl_param = ' -Dcom.unraveldata.client.rest.ssl.enabled=true'
+    org_driver_conf = spark_defaults_configs['spark.driver.extraJavaOptions'][0]
+    org_exec_conf = spark_defaults_configs['spark.executor.extraJavaOptions'][0]
+    spark_defaults_configs['spark.driver.extraJavaOptions'][0] = org_driver_conf + btrace_ssl_param
+    spark_defaults_configs['spark.executor.extraJavaOptions'][0] = org_exec_conf + btrace_ssl_param
+    if mapred_site_configs is not None:
+        org_am_conf = mapred_site_configs['yarn.app.mapreduce.am.command-opts'][0]
+        org_task_conf = mapred_site_configs['mapreduce.task.profile.params'][0]
+        mapred_site_configs['yarn.app.mapreduce.am.command-opts'][0] = org_am_conf + btrace_ssl_param
+        mapred_site_configs['mapreduce.task.profile.params'][0] = org_task_conf + btrace_ssl_param
+    tez_am_conf = tez_site_configs['tez.am.launch.cmd-opts'][0]
+    tez_launch_conf = tez_site_configs['tez.task.launch.cmd-opts'][0]
+    tez_site_configs['tez.am.launch.cmd-opts'][0] = tez_am_conf + btrace_ssl_param
+    tez_site_configs['tez.task.launch.cmd-opts'][0] = tez_launch_conf + btrace_ssl_param
 
 def main():
     sleep(35)
@@ -3469,16 +3571,17 @@ EOF
    if is_secure; then
         SECURE_ARGS="--esp --principal $KEYTAB_PRINCIPAL"
    fi
+   SCRIPT_ARGS="--unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} --lr-port ${LR_PORT} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS}"
    if [ "$UNINSTALL" == True ]; then
-        sudo python /tmp/unravel/final_check.py --uninstall --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
+        SCRIPT_ARGS="${SCRIPT_ARGS} --uninstall"
         if [ -e /etc/init.d/unravel_es ]; then
             es_uninstall
         fi
    elif [ "$ENABLE_ALL_SENSOR" == True ]; then
-        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} --all ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
-   else
-        sudo python /tmp/unravel/final_check.py --unravel-protocol ${UNRAVEL_PROTOCOL} -host ${UNRAVEL_SERVER} -l ${AMBARI_HOST} -s ${SPARK_VER_XYZ} -hive ${HIVE_VER_XYZ} --metrics-factor ${METRICS_FACTOR} ${SECURE_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
+        SCRIPT_ARGS="${SCRIPT_ARGS} --all"
     fi
+   echo "sudo python /tmp/unravel/final_check.py ${SCRIPT_ARGS}"
+   sudo python /tmp/unravel/final_check.py ${SCRIPT_ARGS} 2>&1 | tee $TMP_DIR/final_check.log
 }
 
 # Upload local sensor file to dfs
@@ -3504,6 +3607,13 @@ function download_from_dfs(){
     echo "Downloading file from dfs $dfs_target to $2"
     hdfs dfs -get ${dfs_target} $2
     return $?
+}
+
+function get_lr_cert(){
+  CERT_FILE=${TMP_DIR}/unravel_lr.cert
+  cert_output=${TMP_DIR}/cert.out
+  echo "Saving lr certificate to $CERT_FILE"
+  echo "done" | openssl s_client -connect "$LRHOST" -showcerts 2>/dev/null | tee $cert_output | openssl x509 -outform PEM > $CERT_FILE
 }
 
 # dump the contents of env variables and shell settings
