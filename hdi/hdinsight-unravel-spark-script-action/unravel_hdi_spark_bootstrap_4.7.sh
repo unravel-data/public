@@ -445,12 +445,7 @@ function install_hive_site() {
 function install_hh_jar() {
   # install jar
   #dest:
-  # In 4.7.2.x hive hook 3.1.0 does not exist use 3.0.0 hive hook jar
-  if [[ ${HIVE_VER_X} -eq 3 ]]; then
-    HH_JAR_NAME="unravel-hive-${HIVE_VER_X}.0.0-hook.jar"
-  else
-    HH_JAR_NAME="unravel-hive-${HIVE_VER_X}.${HIVE_VER_Y}.0-hook.jar"
-  fi
+  HH_JAR_NAME="unravel-hive-${HIVE_VER_X}.${HIVE_VER_Y}.0-hook.jar"
   HHURL="${UNRAVEL_PROTOCOL}://${UNRAVEL_SERVER}/hh/$HH_JAR_NAME"
   if [ ! -z $SENSOR_URL ]; then
     HHURL=${SENSOR_URL%%/}/$HH_JAR_NAME
@@ -1537,15 +1532,15 @@ function spark_postinstall_check() {
       fi
       if [ ! -e "$SPARK_CONF_DEST/spark-defaults.conf.unravel" ]; then
         echo "ERROR: Missing $SPARK_CONF_DEST/spark-defaults.conf.unravel" | tee -a ${OUT_FILE}
-        ret = 1
+        ret=1
       fi
     fi
 
     cat ${SPARK_CONF_DEST}/spark-defaults.conf | fgrep "$EXECUTOR_AGENT_ARGS" 1>/dev/null 2>/dev/null
-    [ 0 -ne $? ] && echo "ERROR: Missing spark config modifications for executor probe" | tee -a ${OUT_FILE} && ret = 1
+    [ 0 -ne $? ] && echo "ERROR: Missing spark config modifications for executor probe" | tee -a ${OUT_FILE} && ret=1
 
     cat ${SPARK_CONF_DEST}/spark-defaults.conf | fgrep "$DRIVER_AGENT_ARGS" 1>/dev/null 2>/dev/null
-    [ 0 -ne $? ] && echo "ERROR: Missing spark config modifications for driver probe" | tee -a ${OUT_FILE} && ret = 1
+    [ 0 -ne $? ] && echo "ERROR: Missing spark config modifications for driver probe" | tee -a ${OUT_FILE} && ret=1
   fi
 
 
